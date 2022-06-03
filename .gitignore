@@ -1,0 +1,7 @@
+*.jpg
+*.mp4
+*.ply
+*.png
+*.webp
+__pycache__
+venv_*
