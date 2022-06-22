@@ -16,6 +16,10 @@ if __name__ == "__main__":
     parser.add_argument('--loglevel', '-l', \
             choices=['critical', 'error', 'warning', 'info', 'debug'], \
             default="warning", type=str, help="set the log level")
+    parser.add_argument('--vmax', type=float, \
+            help="maximum value to be in color range (default: max. observable value of all input files")
+    parser.add_argument('--vmin', type=float, \
+            help="minimum value to be in color range (default: min. observable value of all input files")
 
     args = parser.parse_args()
     
@@ -49,8 +53,8 @@ if __name__ == "__main__":
     valid_mask = np.logical_and(valid_mask, np.logical_not(np.isinf(debug_tensor)))
 
     debug_tensor_valid = debug_tensor[valid_mask]
-    min_val = np.min(debug_tensor_valid)
-    max_val = np.max(debug_tensor_valid)
+    min_val = args.vmin if args.vmin is not None else np.min(debug_tensor_valid)
+    max_val = args.vmax if args.vmax is not None else np.max(debug_tensor_valid)
 
     logger.debug(f"{min_val=}")
     logger.debug(f"{max_val=}")
