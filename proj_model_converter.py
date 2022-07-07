@@ -1,6 +1,6 @@
-from image_helper import *
-from numeric_helper import *
-from proj_models import *
+from .image_helper import *
+from .numeric_helper import *
+from .proj_models import *
 
 import argparse
 import logging

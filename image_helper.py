@@ -1,4 +1,4 @@
-from pointcloud import PointCloud
+from .pointcloud import PointCloud
 
 import logging
 import os
