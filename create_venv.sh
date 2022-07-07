@@ -20,6 +20,7 @@ fi
 if ! [ -d "$virt_env" ];
 then
     python3 -m venv "$virt_env"
+    abortOnFailure
 fi
 
 source "$virt_env/bin/activate"
