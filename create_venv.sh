@@ -23,6 +23,7 @@ then
     abortOnFailure
 fi
 
+sed -i "s#PATH=\"\$VIRTUAL_ENV#PATH=\"$PWD:\$VIRTUAL_ENV#g" $virt_env/bin/activate
 source "$virt_env/bin/activate"
 
 python -m pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cpu && \
@@ -35,7 +36,7 @@ then
     echo "The virtual environment ${virt_env} was created successfully." 1>&2
     echo "However, no Open3D verison was found for $(python --version)." 1>&2
     echo "Please install Open3D in the virtual environment ${virt_env} manually." 1>&2
-    echo "If you build Open3D from source, do not forget to activate your virtual environment before." 1&>2
+    echo "If you build Open3D from source, do not forget to activate your virtual environment before." 1>&2
 fi
 
 echo "SUCCESS"
