@@ -27,7 +27,7 @@ sed -i "s#PATH=\"\$VIRTUAL_ENV#PATH=\"$PWD:\$VIRTUAL_ENV#g" $virt_env/bin/activa
 source "$virt_env/bin/activate"
 
 python -m pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cpu && \
-python -m pip install pillow matplotlib tifffile tqdm tensorboard openexr numpy opencv-python && \
+python -m pip install pillow matplotlib tifffile tqdm tensorboard openexr numpy opencv-python pyqt5 && \
 abortOnFailure
 
 python -m pip install open3d
