@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-from .image_helper import *
-from .numeric_helper import *
+from map_proc.image_helper import *
+from map_proc.numeric_helper import *
 
 from PIL import Image
 import glob

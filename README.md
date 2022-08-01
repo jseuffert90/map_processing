@@ -18,14 +18,15 @@ Hereinafter, scripts providing a main function are introduced:
   This script converts maps to other maps underlying a different projection model (equidistant & equipolar equidistant).
 - `scale_dataset.py`:
   This script down- up upscales the maps or images of a given dataset. `torchvision.transforms.Resize` is used for that purpose as this method strictly preserves the FOV of the images/maps.
-- `tiffviewer.py`:
-  The tiffviewer is reminiscent of the program `tifffile` of the pip package `tifffile`.
-  However, this viewer can plot multiple tiffs at once and ignores NaNs for adjusting the range of the axis.
+- `mapviewer.py`:
+  The mapviewer is reminiscent of the program `tifffile` of the pip package `tifffile`.
+  However, the mapviewer can plot multiple tiffs or maps at once and ignores NaNs for adjusting the range of the axis.
 - `viz_pc.py`:
   This script makes a video from a point cloud.
 
 ## Dependencies
 
+- libilmbase (v2.3.0+)
 - PyTorch (v1.11+)
 - PIL (v9.1+)
 - NumPy (v1.22+)

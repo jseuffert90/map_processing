@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from map_proc.image_helper import *
+
 import argparse
 import logging
 import math
@@ -11,7 +13,7 @@ import numpy as np
 import tifffile
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Displays multiple float-channel tiff files')
+    parser = argparse.ArgumentParser(description='Displays multiple map files')
     parser.add_argument('file', type=str, nargs="+", help="input files")
     parser.add_argument('--loglevel', '-l', \
             choices=['critical', 'error', 'warning', 'info', 'debug'], \
@@ -24,7 +26,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     log_level = getattr(logging, args.loglevel.upper())
-    logger = logging.getLogger('tiffviewer')
+    logger = logging.getLogger('mapviewer')
     logger.setLevel(log_level)
     stream = logging.StreamHandler()
     stream.setLevel(log_level)
@@ -32,10 +34,20 @@ if __name__ == "__main__":
     
     images = []
     for f in args.file:
-        image = tifffile.imread(f)
+        _, ext = os.path.splitext(f)
+        ext = ext.lower()
+
+        if ext == ".tif" or ext == ".tiff":
+            image = tifffile.imread(f)
+        elif ext == ".exr":
+            image = import_exr_grayscale(f)
+        else:
+            image = read_image(f)
+
         image = image.squeeze()
+
         if len(image.shape) != 2:
-            logger.error("only tiffs with a single channels and a signle page are supported")
+            logger.error("only maps with a single channel and a single page are supported")
             exit(1)
         images.append(image)
 
