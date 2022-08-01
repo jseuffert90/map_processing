@@ -40,3 +40,6 @@ then
 fi
 
 echo "SUCCESS"
+echo "You might want to add a bash alias to activate the virtual environment from everywhere:"
+echo "echo \"alias mapproc=\\\"source \\\\\\\"$PWD/$virt_env/bin/activate\\\\\\\"\\\"\" >> ~/.bash_aliases"
+echo "Then reload your bash aliases via: . ~/.bash_aliases"
