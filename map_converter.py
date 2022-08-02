@@ -218,8 +218,8 @@ def get_in_and_out_files(source_dir: str, target_dir: str, colormap_dir=None, ta
 
     if colormap_dir is not None:
         colormap_files = [f for f in sorted(glob.glob(f"{colormap_dir}/*")) if is_supported_colormap_file(f)]
-    if len(source_files) != len(colormap_files):
-        raise ValueError("There must be exaclty one colormap for each input map or no color map.")
+        if len(source_files) != len(colormap_files):
+            raise ValueError("There must be exaclty one colormap for each input map or no color map.")
 
     return source_files, target_files, colormap_files
 
