@@ -81,6 +81,20 @@ def from_disp(disp_map: np.ndarray, rays, method_args):
     dist_map = np.sin(beta_r) * baseline / np.sin(disp_map)
     return rays * dist_map[:, :, None]
 
+def from_pdisp(pdisp_map: np.ndarray, rays, method_args):
+    # this method returns the perspective disparity
+    baseline = method_args['baseline']
+    focal = method_args['focal']
+    assert len(pdisp_map.shape) == 2
+
+    z = np.zeros_like(pdisp_map) * float('nan')
+    valid_pdisp = pdisp == pdisp
+    valid_pdisp *= pdisp != 0
+    valid_pdisp *= np.abs(pdisp) < np.inf
+
+    z[valid_pdisp] = focal * baseline / pdisp_map[valid_pdisp]
+    return rays * z / rays[:, :, 0]
+
 def to_depth(pc: np.ndarray, method_args):
     assert pc.shape[2] == 3, "The shape of the ordered point cloud must be [height, width, 3]"
     return pc[2]
@@ -113,6 +127,20 @@ def to_disp(pc: np.ndarray, method_args):
     disp_map = np.arccos(cos_disp)
     return disp_map
 
+def to_pdisp(pc: np.ndarray, method_args):
+    # this method returns the perspective disparity
+    baseline = method_args['baseline']
+    focal = method_args['focal']
+    assert pc.shape[2] == 3, "The shape of the ordered point cloud must be [height, width, 3]"
+
+    z = pc[:, :, 2]
+    pdisp_map = np.zeros_like(z) * float('nan')
+    valid_z = z == z
+    valid_z *= z != 0
+    valid_z *= np.abs(z) < np.inf
+    pdisp_map[valid_z] = focal * baseline / z[valid_z]
+    return pdisp_map
+
 # dummy mehtod
 def to_pc(pc: np.array, method_args):
     return pc
@@ -126,9 +154,11 @@ def read_colors(path: str):
 
 def run(id_counter, source_files, colormaps, target_files, thread_id, args):
     fov_rad = args.fov / 180.0 * np.pi
+
     from_to_args = {
             'fov': fov_rad,
-            'baseline': args.baseline
+            'baseline': args.baseline,
+            'focal': args.focal
     }
     
     logger = logging.getLogger(LOGGER_NAME)
@@ -155,6 +185,12 @@ def run(id_counter, source_files, colormaps, target_files, thread_id, args):
                 # rays do not match the current image -> recalculate
                 height, width = cur_height, cur_width
                 rays = eval(f"get_rays_{args.proj_model.name.lower()}((height, width), fov_rad, fov_rad)")
+
+            if cur_width != width or cur_height != height:
+                raise ValueError("All input files must have the same dimensions.")
+
+            if from_to_args['focal'] is None:
+                from_to_args['focal'] = min(height, width) / fov_rad
 
             pc = eval(f"from_{args.input_type}(data, rays, from_to_args)")
             out = eval(f"to_{args.output_type}(pc, from_to_args)")
@@ -235,6 +271,8 @@ if __name__ == "__main__":
             help="provide a color map for point cloud generation " \
             + "(ignored if output is not 'pc'. If provided, must have " \
             + "same num of args as --input)")
+    parser.add_argument('--focal', type=float, help="focal length of the camera " \
+            + "(if not provided: determined by --fov assuming equidistant camera)")
     parser.add_argument('--fov', '-f', type=float, default="180.0", help="field of view in degrees", required=True)
     parser.add_argument('--input', '-i', metavar="file-or-dir", type=str, nargs="+", help="input maps")
     parser.add_argument('--input_scale', default=1.0, type=float, help="scales input map values")
@@ -246,10 +284,12 @@ if __name__ == "__main__":
     parser.add_argument('--output', '-o', metavar="file-or-dir", type=str, nargs="+", help="output maps")
     parser.add_argument('--output_scale', default=1.0, type=float, help="scales output map values")
     parser.add_argument('--output_type', '-b', metavar="out_type", type=str, required=True, \
-            choices=["depth", "disp", "dist", "pc"], help="type of each output map")
+            choices=["depth", "disp", "dist", "pc", "pdisp"], help="type of each output map")
     parser.add_argument('--proj_model', '-p', type=str, choices=[x.name for x in ProjModel], \
             default="EQUIDIST", help="projection model")
     parser.add_argument('--stop_after', '-s', type=int, metavar="N", help="stop after processing N files")
+    parser.add_argument('--target_ext', '-t', type=str, help="target file extension, e.g. '.tiff'; " \
+            + "if not provided: derived from input file extension")
 
     args = parser.parse_args()
     
@@ -330,7 +370,7 @@ if __name__ == "__main__":
                         It should be a directory path.")
                     exit(1)
    
-            target_ext = None
+            target_ext = args.target_ext
             if args.output_type == "pc":
                 target_ext = ".ply"
             source_files, target_files, colormap_files = \
