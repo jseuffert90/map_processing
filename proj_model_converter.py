@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from map_proc.image_helper import *
 from map_proc.numeric_helper import *
 from map_proc.proj_models import *
