@@ -240,15 +240,21 @@ def is_supported_colormap_file(path: str):
 def get_stem(path: str):
     return os.path.splitext(path)[0]
 
-def get_in_and_out_files(source_dir: str, target_dir: str, colormap_dir=None, target_ext=None):
+def get_in_and_out_files(source_dir: str, target_dir: str, colormap_dir=None, target_ext=None, repl_str=None):
     basenames = [os.path.basename(f) for f in sorted(glob.glob(f"{source_dir}/*")) if is_supported_data_file(f)]
     logger.debug(f"{basenames=}")
     source_files = [os.path.join(source_dir, bname) for bname in basenames]
+
+    if repl_str is not None:
+        rep, by = repl_str.split(";")
+        basenames_target = [b.replace(rep, by) for b in basenames]
+    else:
+        basenames_target = basenames
     
     if target_ext is None:
-        target_files = [os.path.join(target_dir, bname) for bname in basenames]
+        target_files = [os.path.join(target_dir, bname) for bname in basenames_target]
     else:
-        target_files = [os.path.join(target_dir, get_stem(bname) + target_ext) for bname in basenames]
+        target_files = [os.path.join(target_dir, get_stem(bname) + target_ext) for bname in basenames_target]
 
     colormap_files = None
 
@@ -287,6 +293,8 @@ if __name__ == "__main__":
             choices=["depth", "disp", "dist", "pc", "pdisp"], help="type of each output map")
     parser.add_argument('--proj_model', '-p', type=str, choices=[x.name for x in ProjModel], \
             default="EQUIDIST", help="projection model")
+    parser.add_argument('--repl_str', '-r', type=str, help="replace str in input file name by another str " \
+            + "in output file name (e.g. '_depth;_pdisp' replaces '_depth' by '_pdisp')")
     parser.add_argument('--stop_after', '-s', type=int, metavar="N", help="stop after processing N files")
     parser.add_argument('--target_ext', '-t', type=str, help="target file extension, e.g. '.tiff'; " \
             + "if not provided: derived from input file extension")
@@ -374,7 +382,7 @@ if __name__ == "__main__":
             if args.output_type == "pc":
                 target_ext = ".ply"
             source_files, target_files, colormap_files = \
-                    get_in_and_out_files(in_entry, out_entry, c_entry, target_ext=target_ext)
+                    get_in_and_out_files(in_entry, out_entry, c_entry, target_ext=target_ext, repl_str=args.repl_str)
             
             all_source_files += source_files
             all_target_files += target_files
