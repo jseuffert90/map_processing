@@ -39,7 +39,7 @@ def export_exr_grayscale(map_np: np.ndarray, file_path: str):
         # take green channel as "gray channel"
         map_np = map_np[:, :, 1]
 
-    pixels = map_tmp.tobytes()
+    pixels = map_np.tobytes()
     header = OpenEXR.Header(map_np.shape[1], map_np.shape[0])
     channel = Imath.Channel(PIXEL_TYPE)
     header['channels'] = {"Y": channel}
