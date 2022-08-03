@@ -30,8 +30,9 @@ def run(id_counter, source_files, target_files, thread_id, args, scaler):
             input_path = source_files[cur_id]
             output_path = target_files[cur_id]
 
+            # TODO: summarize all cases with read_data
             # INPUT
-            if input_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.tif', '.tiff', '.webp']:
+            if input_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.webp']:
                 input_img = Image.open(str(input_path))
                 if input_img.n_frames > 1:
                     raise ValueError("Multi frame images are not supported.")
@@ -41,7 +42,9 @@ def run(id_counter, source_files, target_files, thread_id, args, scaler):
                 input_tensor_np = import_exr_grayscale(str(input_path))
                 input_tensor = torch.from_numpy(input_tensor_np)
             else:
-                assert False # Forgot to implement a new file format?
+                input_tensor_np = read_data(str(input_path))
+                input_tensor = torch.from_numpy(input_tensor_np)
+
         
             if input_tensor.dim() == 2:
                 input_tensor = input_tensor[None] # [C, H, W]
@@ -58,7 +61,7 @@ def run(id_counter, source_files, target_files, thread_id, args, scaler):
             output_tensor = scaler(input_tensor)
             
             # OUTPUT
-            if output_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.tif', '.tiff', '.webp']:
+            if output_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.webp']:
                 output_tensor = output_tensor.squeeze()
                 output_img = TO_PIL(output_tensor)
                 output_img.save(str(output_path), lossless=(not args.lossy), quality=args.quality, method=args.method)
@@ -66,7 +69,8 @@ def run(id_counter, source_files, target_files, thread_id, args, scaler):
                 output_tensor_np = output_tensor.detach().numpy()
                 export_exr_grayscale(output_tensor_np, output_path)
             else:
-                assert False # Forgot to implement a new file format?
+                output_tensor_np = output_tensor.detach().numpy()
+                write_data(str(output_path), output_tensor_np)
 
             cur_id = id_counter.getAndInc()
             pbar.n = min(len(source_files), cur_id+1)
