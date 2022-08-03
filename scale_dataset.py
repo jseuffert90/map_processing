@@ -9,7 +9,6 @@ from pathlib import Path
 import threading
 import tqdm
 import argparse as argprs
-from psutil import cpu_count
 import torch
 from torchvision import transforms
 import numpy as np
