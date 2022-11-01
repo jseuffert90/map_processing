@@ -3,9 +3,66 @@
 import argparse
 import os
 import time
+import sys
 
 import cv2
 import numpy as np
+
+
+class Refine():
+    def __init__(self, img, pos_x, pos_y, name):
+        self.scale = 9 # should be odd to avoid loosing info while casting pos after scaling
+        self.pos_x = int(self.scale * (pos_x + 0.5) - 0.5)
+        self.pos_y = int(self.scale * (pos_y + 0.5) - 0.5)
+        self.img = cv2.resize(img, None, fx=self.scale, fy=self.scale, interpolation=cv2.INTER_LINEAR)
+        self.zoomed_snippet = None
+        self.name = name
+        self.new_pos_x = self.pos_x
+        self.new_pos_y = self.pos_y
+        
+        self.snippet_w = int(40 * self.scale + 1)
+        self.snippet_h = self.snippet_w
+
+        self.cut_snippet()
+        cv2.createTrackbar('horiz_refine', name, int((self.snippet_w - 1)/2), self.snippet_w - 1, self.on_horiz_refine_change)
+        cv2.createTrackbar('vert_refine',  name, int((self.snippet_h - 1)/2), self.snippet_h - 1, self.on_vert_refine_change)
+
+    
+    def on_horiz_refine_change(self, value):
+        assert self.snippet_w % 2 == 1
+        offset = value - int((self.snippet_w - 1)/2)
+        self.new_pos_x = self.pos_x + offset 
+        self.cut_snippet()
+    
+    def on_vert_refine_change(self, value):
+        assert self.snippet_w % 2 == 1
+        offset = value - int((self.snippet_h - 1)/2)
+        self.new_pos_y = self.pos_y + offset
+        self.cut_snippet()
+
+    def get_refined_coords(self):
+        refined_x = ((self.new_pos_x + 0.5) / self.scale) - 0.5
+        refined_y = ((self.new_pos_y + 0.5) / self.scale) - 0.5
+        return refined_x, refined_y
+
+    def cut_snippet(self):
+        assert self.snippet_w % 2 == 1
+        self.snippet_l = self.new_pos_x - int((self.snippet_w - 1) / 2)
+        self.snippet_r = self.new_pos_x + int((self.snippet_w - 1) / 2)
+        self.snippet_t = self.new_pos_y - int((self.snippet_h - 1) / 2)
+        self.snippet_b = self.new_pos_y + int((self.snippet_h - 1) / 2)
+
+        self.zoomed_snippet = self.img[self.snippet_t:self.snippet_b+1, self.snippet_l:self.snippet_r+1]
+        assert self.zoomed_snippet.shape[:2] == (self.snippet_h, self.snippet_w)
+        self.plot_snippet()
+    
+    def plot_snippet(self):
+        cpy = np.copy(self.zoomed_snippet)
+        cross_x = round((self.snippet_w - 1) / 2)
+        cross_y = round((self.snippet_h - 1) / 2)
+        cpy[:, cross_x, :] = 0
+        cpy[cross_y, :, :] = 0
+        cv2.imshow(self.name, cpy)
 
 
 ## Converts a pixel location to a light ray and determins angle between ray and -x axis
@@ -67,6 +124,9 @@ def process_stereo_pair():
     global x_l, y_l
     global x_r, y_r
 
+    global img_l
+    global img_l
+
     if x_l is None:
         return
     if y_l is None:
@@ -75,6 +135,26 @@ def process_stereo_pair():
         return
     if y_r is None:
         return
+
+    print("Press any key on keyboard to take refinement.")
+    left_refine  = Refine(img_l, x_l, y_l, "refine_left")
+    right_refine = Refine(img_r, x_r, y_r, "refine_right")
+    cv2.waitKey(0)
+    cv2.destroyWindow("refine_left")
+    cv2.destroyWindow("refine_right")
+    
+    refined_x_l, refined_y_l = left_refine.get_refined_coords()
+    refined_x_r, refined_y_r = right_refine.get_refined_coords()
+
+    print(f"refined_x_l: {refined_x_l}; xl: {x_l}")
+    print(f"refined_y_l: {refined_y_l}; yl: {y_l}")
+    print(f"refined_x_r: {refined_x_r}; xl: {x_r}")
+    print(f"refined_y_r: {refined_y_r}; yl: {y_r}")
+
+    x_l = refined_x_l
+    y_l = refined_y_l
+    x_r = refined_x_r
+    y_r = refined_y_r
 
     ray_l, beta_l = pixel_to_beta(y_l, x_l, focal_l, c_y_l, c_x_l)
     ray_r, beta_r = pixel_to_beta(y_r, x_r, focal_r, c_y_r, c_x_r)
@@ -162,6 +242,13 @@ if __name__ == "__main__":
 
     img_l = cv2.imread(args.left)
     img_r = cv2.imread(args.right)
+
+    if img_l is None:
+        print(f"ERROR: Could not read {args.left}", file=sys.stderr)
+        exit(1)
+    if img_r is None:
+        print(f"ERROR: Could not read {args.right}", file=sys.stderr)
+        exit(1)
     
     height_l, width_l = img_l.shape[:2]
     height_r, width_r = img_r.shape[:2]
@@ -174,6 +261,8 @@ if __name__ == "__main__":
     c_y_r = (height_r - 1) / 2.0
     baseline = args.baseline
 
+    cv2.namedWindow("left image", cv2.WINDOW_NORMAL)
+    cv2.namedWindow("right image", cv2.WINDOW_NORMAL)
     cv2.imshow("left image", img_l)
     cv2.setMouseCallback('left image', click_img_left)
     
