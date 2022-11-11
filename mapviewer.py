@@ -13,6 +13,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tifffile
 
+def replace_invalid(map_or_img, rep_val):
+    tmp_img = np.copy(map_or_img)
+    tmp_img[tmp_img != tmp_img] = sys.float_info.min
+    tmp_img[tmp_img == np.inf] = sys.float_info.min
+    tmp_img[tmp_img == -np.inf] = sys.float_info.min
+    return tmp_img
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Displays multiple map files')
     # positional arguments
@@ -29,6 +36,7 @@ if __name__ == "__main__":
             default="warning", type=str, help="set the log level")
     parser.add_argument('--names', '-n', type=str, nargs="+", help="title or name for each subfigure (default: file name)")
     parser.add_argument('--outfile', '-o', type=str, help="output file (if set, no plots are shown on the display)")
+    parser.add_argument('--title', '-t', type=str, help="title or figure")
     parser.add_argument('--vmax', type=float, \
             help="maximum value to be in color range (default: max. observable value of all input files)")
     parser.add_argument('--vmin', type=float, \
@@ -88,14 +96,27 @@ if __name__ == "__main__":
         n_rows = round(math.sqrt(num_images))
         n_cols = math.ceil(num_images / n_rows)
 
+    min_val = args.vmin
+    if min_val is None:
+        min_val = np.min(images[0])
+        for i in range(1, len(images)):
+            min_val = min(np.min(images[i]), min_val)
     
-    debug_tensor = np.vstack(images)
-    valid_mask = (debug_tensor == debug_tensor)
-    valid_mask = np.logical_and(valid_mask, np.logical_not(np.isinf(debug_tensor)))
-
-    debug_tensor_valid = debug_tensor[valid_mask]
-    min_val = args.vmin if args.vmin is not None else np.min(debug_tensor_valid)
-    max_val = args.vmax if args.vmax is not None else np.max(debug_tensor_valid)
+    min_val = args.vmin
+    if min_val is None:
+        tmp = replace_invalid(images[0], sys.float_info.max)
+        min_val = np.min(tmp)
+        for i in range(1, len(images)):
+            tmp = replace_invalid(images[i], sys.float_info.max)
+            min_val = min(np.min(tmp), min_val)
+    
+    max_val = args.vmax
+    if max_val is None:
+        tmp = replace_invalid(images[0], sys.float_info.min)
+        max_val = np.max(tmp)
+        for i in range(1, len(images)):
+            tmp = replace_invalid(images[i], sys.float_info.min)
+            max_val = min(np.max(tmp), max_val)
 
     logger.debug(f"{min_val=}")
     logger.debug(f"{max_val=}")
@@ -107,6 +128,9 @@ if __name__ == "__main__":
     else:
         fig, axes = plt.subplots(nrows=n_rows, ncols=n_cols)
     n_fields = n_rows * n_cols
+
+    if args.title is not None:
+        fig.suptitle(args.title)
 
     if n_fields > 1:
         axes_ravel = axes.ravel().tolist()
