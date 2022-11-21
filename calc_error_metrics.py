@@ -25,19 +25,21 @@ def get_sample_id(filename):
 
 def get_valid(error_map):
     valid = (error_map == error_map)
-    valid *= (error_map > 0)
+    valid *= (error_map >= 0)
     valid *= (error_map < np.inf)
     return valid
 
 def get_joint_valid_mask(error_maps):
     valid = None
+    masks = {}
     for name, error_map in error_maps.items():
         if valid is None:
             valid = get_valid(error_map)
         else:
             valid *= get_valid(error_map)
+        masks[name] = valid
     assert valid is not None
-    return valid
+    return valid, masks
 
 
 def main():
@@ -136,33 +138,42 @@ def main():
                 logging.error("File {files_cur_sample[name]} expected to have a width of {width} not {cur_map.shape[1]}")
             maps_cur_sample[name] = cur_map
         
-        joint_valid_mask = get_joint_valid_mask(maps_cur_sample)
+        joint_valid_mask, masks = get_joint_valid_mask(maps_cur_sample)
 
         if args.show_samples:
             fig, axs = plt.subplots(2, num_sample_dirs)
-            for pos, name in enumerate(args.names):
-                cur_error_map = maps_cur_sample[name]
-                cur_error_map_joint_valid = np.copy(cur_error_map)
-                cur_error_map_joint_valid[np.bitwise_not(joint_valid_mask)] = float('nan')
-                # handle = axs[pos, 0].imshow(cur_error_map, vmin=min_val, vmax=max_val)
-                handle_own_mask = axs[pos, 0].imshow(cur_error_map)
-                axs[pos, 0].set_title(f'{name} - own mask')
-                handle_joint_mask = axs[pos, 1].imshow(cur_error_map_joint_valid)
-                axs[pos, 1].set_title(f'{name} - joint mask')
-            plt.show()
 
-        
         log_str_mae = f"MAE {sample_id} "
         log_str_rmse = f"RMSE {sample_id} "
-        for name in files_cur_sample:
+        for pos, name in enumerate(args.names):
             error_map = maps_cur_sample[name]
+            cur_error_map_joint_valid = np.copy(error_map)
+            cur_error_map_joint_valid[np.bitwise_not(joint_valid_mask)] = float('nan')
             
             mae_v = np.mean(error_map[joint_valid_mask])
             mae_values[name] += mae_v
             rmse_v = np.sqrt(np.mean(np.square(error_map[joint_valid_mask])))
             rmse_values[name] += rmse_v
+            
+            mae_own_mask = np.mean(error_map[masks[name]])
+
+            max_error_own_mask = np.max(error_map[masks[name]])
+            # print(f"{max_error_own_mask=}")
+            rmse_own_mask = np.sqrt(np.mean(np.square(error_map[masks[name]])))
+            
             log_str_mae += f"{name} {mae_v:.05f}, "
             log_str_rmse += f"{name} {rmse_v:.05f}, "
+            if args.show_samples:
+                handle_own_mask = axs[0, pos].imshow(error_map)
+                axs[0, pos].set_title(f'{name} - own mask')
+                axs[0, pos].text(10, 60, f'MAE = {mae_own_mask:.05f}')
+                axs[0, pos].text(10, 110, f'RMSE = {rmse_own_mask:.05f}')
+                handle_joint_mask = axs[1, pos].imshow(cur_error_map_joint_valid)
+                axs[1, pos].set_title(f'{name} - joint mask')
+                axs[1, pos].text(10, 60, f'MAE = {mae_v:.05f}')
+                axs[1, pos].text(10, 110, f'RMSE = {rmse_v:05f}')
+        if args.show_samples:
+            plt.show()
 
         log_str_mae = log_str_mae[:-2]
         log_str_rmse = log_str_rmse[:-2]
