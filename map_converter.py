@@ -81,6 +81,11 @@ def from_disp(disp_map: np.ndarray, rays, method_args):
     dist_map = np.sin(beta_r) * baseline / np.sin(disp_map)
     return rays * dist_map[:, :, None]
 
+def from_invdist(dist_map: np.ndarray, rays, method_args):
+    fov = method_args['fov']
+    height, width = dist_map.shape[0:2]
+    return rays * (1 / dist_map.reshape((height, width, 1)))
+
 def from_pdisp(pdisp_map: np.ndarray, rays, method_args):
     # this method returns the perspective disparity
     baseline = method_args['baseline']
@@ -126,6 +131,10 @@ def to_disp(pc: np.ndarray, method_args):
     cos_disp[cos_disp < -1] = -1
     disp_map = np.arccos(cos_disp)
     return disp_map
+
+def to_invdist(pc: np.ndarray, method_args): 
+    assert pc.shape[2] == 3, "The shape of the ordered point cloud must be [height, width, 3]"
+    return 1 / to_dist(pc, method_args)
 
 def to_pdisp(pc: np.ndarray, method_args):
     # this method returns the perspective disparity
@@ -290,7 +299,7 @@ if __name__ == "__main__":
     parser.add_argument('--output', '-o', metavar="file-or-dir", type=str, nargs="+", help="output maps")
     parser.add_argument('--output_scale', default=1.0, type=float, help="scales output map values")
     parser.add_argument('--output_type', '-b', metavar="out_type", type=str, required=True, \
-            choices=["depth", "disp", "dist", "pc", "pdisp"], help="type of each output map")
+            choices=["depth", "disp", "dist", "pc", "pdisp", "invdist"], help="type of each output map")
     parser.add_argument('--proj_model', '-p', type=str, choices=[x.name for x in ProjModel], \
             default="EQUIDIST", help="projection model")
     parser.add_argument('--repl_str', '-r', type=str, help="replace str in input file name by another str " \

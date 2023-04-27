@@ -14,6 +14,7 @@ Hereinafter, scripts providing a main function are introduced:
   The map converter allows to convert maps and point clouds. Provided data types are:
   - depth maps (z distance of a point to the camera)
   - distance maps (Euclidean distance of a point to the camera)
+  - inverse distance maps (inv. Euclidean distance of a point to the camera)
   - disparity maps (maps containing disparity values defined in [1])
   - point clouds (ply format)
 - `proj_model_converter.py`:
