@@ -20,10 +20,22 @@ def import_exr_grayscale(file_path: str):
     data_window = exr_file.header()['dataWindow']
     width = data_window.max.x - data_window.min.x + 1
     height = data_window.max.y - data_window.min.y + 1
-    try:
-        channel = exr_file.channel('R', PIXEL_TYPE)
-    except TypeError:
-        channel = exr_file.channel('Y', PIXEL_TYPE)
+
+    for ch_key in ['R', 'Y', 'Z', 'H']:
+        channel = None
+        try:
+            channel = exr_file.channel(ch_key, PIXEL_TYPE)
+            break
+        except TypeError:
+            pass
+    
+    if channel == None:
+        channel_keys = exr_file.header()['channels'].keys()
+        if len(channel_keys) != 1:
+            logging.getLogger(IMAGE_HELPER_LOGGER_NAME).error("Unsupported EXR format")
+            raise Error("Unsupported EXR format")
+        channel = exr_file.channel(list(channel_keys)[0], PIXEL_TYPE)
+
     map_np = np.frombuffer(channel, dtype=np.float32)
     map_np.shape = (height, width)
     map_np = map_np.copy()
