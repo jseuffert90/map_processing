@@ -25,8 +25,10 @@ def get_sample_id(filename):
 
 def get_valid(error_map):
     valid = (error_map == error_map)
-    valid *= (error_map >= 0)
-    valid *= (error_map < np.inf)
+    with np.errstate(invalid='ignore'):
+        # nan values in error map cause unimportant warnings --> ignore
+        valid *= (error_map >= 0)
+        valid *= (error_map < np.inf)
     return valid
 
 def get_joint_valid_mask(error_maps):
