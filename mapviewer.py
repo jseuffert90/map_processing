@@ -41,6 +41,11 @@ if __name__ == "__main__":
             help="maximum value to be in color range (default: max. observable value of all input files)")
     parser.add_argument('--vmin', type=float, \
             help="minimum value to be in color range (default: min. observable value of all input files)")
+    parser.add_argument('--grid', type=str, \
+            help="define matplotlibs grid layout in the format <#rows>x<#cols>, e.g. 2x2")
+    parser.add_argument('--abs', action='store_true', \
+            help='show absolute values |v| instead of real values v')
+
 
     args = parser.parse_args()
     
@@ -81,6 +86,8 @@ if __name__ == "__main__":
         else:
             image = read_image(f)
 
+        if args.abs:
+            image = np.abs(image)
         image = image.squeeze()
 
         if len(image.shape) != 2:
@@ -89,12 +96,23 @@ if __name__ == "__main__":
         images.append(image)
 
     num_images = len(args.file)
-    if num_images < 3:
-        n_rows = 1
-        n_cols = num_images
+    if args.grid:
+        try:
+            n_rows, n_cols = args.grid.split('x')
+            n_rows = int(n_rows)
+            n_cols = int(n_cols)
+            if n_rows <= 0 or n_cols <= 0:
+                raise Exception
+        except:
+            logger.error(f"Malformed grid argument {args.grid} which is not in format RxC (rows x cols)")
+            exit(1)
     else:
-        n_rows = round(math.sqrt(num_images))
-        n_cols = math.ceil(num_images / n_rows)
+        if num_images < 3:
+            n_rows = 1
+            n_cols = num_images
+        else:
+            n_rows = round(math.sqrt(num_images))
+            n_cols = math.ceil(num_images / n_rows)
 
     min_val = args.vmin
     if min_val is None:
