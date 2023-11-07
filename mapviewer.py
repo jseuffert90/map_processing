@@ -42,9 +42,11 @@ if __name__ == "__main__":
     parser.add_argument('--vmin', type=float, \
             help="minimum value to be in color range (default: min. observable value of all input files)")
     parser.add_argument('--grid', type=str, \
-            help="define matplotlibs grid layout in the format <#rows>x<#cols>, e.g. 2x2")
+            help="define matplotlibs grid layout in the format <#rows>x<#cols>, e.g. 2x2 or 2x or x2 for auto completion of cols or rows, respectively")
     parser.add_argument('--abs', action='store_true', \
             help='show absolute values |v| instead of real values v')
+    parser.add_argument('--no_colorbar', default=False, action='store_true', \
+            help='do not plot color bar')
 
 
     args = parser.parse_args()
@@ -99,8 +101,14 @@ if __name__ == "__main__":
     if args.grid:
         try:
             n_rows, n_cols = args.grid.split('x')
-            n_rows = int(n_rows)
-            n_cols = int(n_cols)
+            if len(n_rows) == 0 and len(n_cols) == 0:
+                raise Exception
+            n_rows = int(n_rows) if len(n_rows) > 0 else None
+            n_cols = int(n_cols) if len(n_cols) > 0 else None
+            if n_rows is None:
+                n_rows = math.ceil(num_images / n_cols)
+            elif n_cols is None:
+                n_cols = math.ceil(num_images / n_rows)
             if n_rows <= 0 or n_cols <= 0:
                 raise Exception
         except:
@@ -165,8 +173,9 @@ if __name__ == "__main__":
             axis.set_title(t)
         else:
             fig.delaxes(axis)
-   
-    fig.colorbar(handle, ax=axes_ravel)
+  
+    if args.no_colorbar == False:
+        fig.colorbar(handle, ax=axes_ravel)
 
     if args.outfile is None:
         plt.show()
