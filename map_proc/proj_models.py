@@ -3,11 +3,13 @@
 from enum import Enum
 
 import numpy as np
+from .image_helper import write_data
 
 class ProjModel(Enum):
     PERSPECTIVE = 0
     EQUIDIST = 1
     EPIPOL_EQUIDIST = 2
+    M9 = 3
 
 def fov_rays_through_pixel_center(fov, side_length):
     '''Converts the FOV into solid angle of rays traversing pixel centers only
@@ -135,6 +137,55 @@ def rays_to_equidist(rays, map_shape, fov_x, fov_y):
 
     img_points = u_r * rho[:, :, None]
     img_points += np.array([[[c_x, c_y]]]) # decenter
+
+    return img_points
+
+def rays_to_m9(rays, map_shape, fov_x, fov_y, calib_json):
+    if fov_x != fov_y:
+        raise NotImplementedError("fov must be equal for both x and y dimension")
+    map_height, map_width = map_shape
+
+    assert len(rays.shape) == 3
+    assert rays.shape[2] == 3 # x, y, z
+    rays_height, rays_width, _ = rays.shape
+
+    #x = rays[:, :, 0]
+    #y = rays[:, :, 1]
+    z = rays[:, :, 2]
+
+    # elevation
+    theta = np.arccos(z / np.linalg.norm(rays, axis=2))
+    theta[z != z] = float('nan')
+    # plot_data(theta, "Theta map of reays_to_equidist")
+    print(f"{theta.dtype=}")
+
+    fx = calib_json["fx"]
+    fy = calib_json["fy"]
+    cx = calib_json["cx"]
+    cy = calib_json["cy"]
+    k0 = calib_json["k0"]
+    k1 = calib_json["k1"]
+    k2 = calib_json["k2"]
+    k3 = calib_json["k3"]
+    k4 = calib_json["k4"]
+
+    theta_2 = theta * theta
+    theta_3 = theta * theta_2
+    theta_5 = theta_3 * theta_2
+    theta_7 = theta_5 * theta_2
+    theta_9 = theta_7 * theta_2
+    
+    rho_norm = k0 * theta + k1 * theta_3 + k2 * theta_5 + k3 * theta_7 + k4 * theta_9
+    write_data("/tmp/rho_normed.tiff", rho_norm.squeeze())
+    write_data("/tmp/theta_normed.tiff", theta.squeeze())
+
+    u_r = rays[:, :, :2]
+    u_r /= np.linalg.norm(u_r, axis=2, keepdims=True)
+
+    img_points_norm= u_r * rho_norm[:, :, None]
+    img_points_x = fx * img_points_norm[:, :, 0:1] + cx # decenter
+    img_points_y = fy * img_points_norm[:, :, 1:2] + cy # decenter
+    img_points = np.concatenate((img_points_x, img_points_y), axis=2)
 
     return img_points
 

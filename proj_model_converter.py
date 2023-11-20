@@ -5,6 +5,7 @@ from map_proc.numeric_helper import *
 from map_proc.proj_models import *
 
 import argparse
+import json
 import logging
 import os
 
@@ -66,8 +67,12 @@ def run(id_counter, source_files, target_files, thread_id, args):
                 source_shape = (source_height, source_width)
                 
                 rays = eval(f"get_rays_{args.output_model.name.lower()}(target_shape, fov_rad, fov_rad)")
-                # mapping = eval(f"rays_to_{args.input_model.name.lower()}(rays, source_shape, fov_rad, fov_rad)") # TODO XXX
-                mapping = rays_to_equidist(rays, source_shape, fov_rad, fov_rad)
+                
+                if args.input_model.name.lower() == "m9":
+                    mapping = eval(f"rays_to_m9(rays, source_shape, fov_rad, fov_rad, args.input_calib_json)")
+                else:
+                    mapping = eval(f"rays_to_{args.input_model.name.lower()}(rays, source_shape, fov_rad, fov_rad)")
+                # mapping = rays_to_equidist(rays, source_shape, fov_rad, fov_rad)
                 #mapping = mapping.astype(np.float32)
                 mapping = torch.from_numpy(mapping)
                 mapping = mapping[None] # H, W, 2 -> N, H, W, 2
@@ -104,9 +109,10 @@ def run(id_counter, source_files, target_files, thread_id, args):
                 print(f"{mapping[0, 3, 1010, 0]=}")
                 print(f"{mapping[0, 3, 1010, 1]=}")
 
-                plot_data(rays[:, :, 0], "light ray's x coordinate")
-                plot_data(rays[:, :, 1], "light ray's y coordinate")
-                plot_data(rays[:, :, 2], "light ray's z coordinate")
+                if args.debug_plot:
+                    plot_data(rays[:, :, 0], "light ray's x coordinate")
+                    plot_data(rays[:, :, 1], "light ray's y coordinate")
+                    plot_data(rays[:, :, 2], "light ray's z coordinate")
                 #theta = np.arccos(rays[:, :, 2])
                 #theta_deg = theta * 180 / np.pi
                 #theta_deg[theta >= 90] = 0
@@ -118,7 +124,7 @@ def run(id_counter, source_files, target_files, thread_id, args):
             # OpenCVs remap relies on float32 luts but the precision us insufficient. Torch can deal with 64 bit luts.
             #out = cv2.remap(data, mapping_x, mapping_y, interpolation=cv2.INTER_LINEAR, borderValue=borderValue)
 
-            out = torch.nn.functional.grid_sample(data, mapping, align_corners=False, padding='reflect')
+            out = torch.nn.functional.grid_sample(data, mapping, align_corners=False, padding_mode='zeros')
             out = out[0] # N, C, H, W -> C, H, W
             out = torch.permute(out, (1, 2, 0)) # C, H, W -> H, W, C
 
@@ -155,6 +161,8 @@ if __name__ == "__main__":
             help="projection model of output file", required=True)
     parser.add_argument('--output_width', type=int, help="output width (default: same as input width)")
     parser.add_argument('--output_height', type=int, help="output width (default: same as input width)")
+    parser.add_argument('--input_calib', type=str, help="calibration file of input camera [json]")
+    parser.add_argument('--debug_plot', action='store_true', help="plot some debug maps")
     args = parser.parse_args()
     
     log_level = getattr(logging, args.log_level.upper())
@@ -175,6 +183,12 @@ if __name__ == "__main__":
     if args.output_height is not None and args.output_height <= 0:
         logger.error("output width must be positive or None")
         exit(1)
+
+    if args.input_calib is not None:
+        with open(args.input_calib) as calib:
+            args.input_calib_json = json.loads(calib.read())
+    else:
+        args.input_calib_json = None
     
     threads = []
     file_id_counter = AtomicInteger(0)
