@@ -114,15 +114,14 @@ def rays_to_equidist(rays, map_shape, fov_x, fov_y):
 
     fov_center_pixel = fov_rays_through_pixel_center(fov_x, map_width)
 
-    x = rays[:, :, 0]
-    y = rays[:, :, 1]
+    #x = rays[:, :, 0]
+    #y = rays[:, :, 1]
     z = rays[:, :, 2]
 
     # plot_data(z, "z-map", vmin=-0.1, vmax=0.1)
 
     # elevation
-    theta = np.ones((rays_height, rays_width), dtype=float) * np.pi
-    theta[z != 0] = np.arctan(np.sqrt(x[z != 0]**2 + y[z != 0]**2) / z[z != 0])
+    theta = np.arccos(z / np.linalg.norm(rays, axis=2))
     theta[z != z] = float('nan')
     # plot_data(theta, "Theta map of reays_to_equidist")
     print(f"{theta.dtype=}")
