@@ -139,4 +139,4 @@ def is_supported_colormap_file(path: str):
 def is_supported_input_file(path: str):
     if is_supported_data_file(path):
         return True
-    return is_suppoerted_colormap_file(path)
+    return is_supported_colormap_file(path)
