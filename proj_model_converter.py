@@ -107,6 +107,12 @@ def run(id_counter, source_files, target_files, thread_id, args):
                 mapping[:, :, :, 0] = -1 + (1 / w) + mapping[:, :, :, 0] * (2 / w)
                 mapping[:, :, :, 1] = -1 + (1 / h) + mapping[:, :, :, 1] * (2 / h)
 
+                if args.mask_out is not None:
+                    mapping_x = mapping[:, :, :, 0]
+                    mapping_y = mapping[:, :, :, 1]
+                    valid_mapping  = (mapping_x >= -1) * (mapping_x <= +1)
+                    valid_mapping *= (mapping_y >= -1) * (mapping_y <= +1)
+
                 # print(f"{rays[3, 1010, 0]=}")
                 # print(f"{rays[3, 1010, 1]=}")
                 # print(f"{rays[3, 1010, 2]=}")
@@ -130,6 +136,10 @@ def run(id_counter, source_files, target_files, thread_id, args):
 
             out = torch.nn.functional.grid_sample(data, mapping, align_corners=False, padding_mode='zeros')
             out = out[0] # N, C, H, W -> C, H, W
+
+            if args.mask_out is not None:
+                out[~valid_mapping] = args.mask_out
+
             out = torch.permute(out, (1, 2, 0)) # C, H, W -> H, W, C
 
             if data_dtype == torch.uint8:
@@ -170,6 +180,7 @@ if __name__ == "__main__":
             help="projection model of output file", required=True)
     parser.add_argument('--output_width', type=int, help="output width (default: same as input width)")
     parser.add_argument('--output_height', type=int, help="output width (default: same as input width)")
+    parser.add_argument('--mask_out', type=float, default=None, help="replace pixels in output map by MASK_OUT if there's no compiant in input map [def: None]")
     parser.add_argument('--input_calib', type=str, help="calibration file of input camera [json]")
     parser.add_argument('--debug_plot', action='store_true', help="plot some debug maps")
     args = parser.parse_args()
