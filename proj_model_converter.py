@@ -7,6 +7,7 @@ from map_proc.proj_models import *
 import argparse
 import json
 import logging
+from multiprocessing import Process
 import os
 
 #import cv2
@@ -22,7 +23,7 @@ def get_in_and_out_files(source_dir: str, target_dir: str):
     target_files = [os.path.join(target_dir, bname) for bname in basenames]
     return source_files, target_files
 
-def run(id_counter, source_files, target_files, thread_id, args):
+def run(id_counter, source_files, target_files, proc_id, args):
     fov_rad_in_x = args.fov_in_x / 180.0 * np.pi
     fov_rad_in_y = args.fov_in_y / 180.0 * np.pi
     fov_rad_out_x = args.fov_out_x / 180.0 * np.pi
@@ -36,7 +37,7 @@ def run(id_counter, source_files, target_files, thread_id, args):
     mapping = None
     mapping = None
     
-    with tqdm.tqdm(total=len(source_files), disable=(thread_id > 0)) as pbar:
+    with tqdm.tqdm(total=len(source_files), disable=(proc_id > 0)) as pbar:
         cur_id = id_counter.getAndInc()
         while cur_id < len(source_files):
             input_path = source_files[cur_id]
@@ -172,7 +173,7 @@ if __name__ == "__main__":
     parser.add_argument('--input', '-i', metavar="file-or-dir", type=str, nargs="+", help="input maps", required=True)
     parser.add_argument('--input_model', '-a', type=str, choices=[x.name for x in ProjModel], \
             help="projection model of input file", required=True)
-    parser.add_argument('--num_threads', '-n', default=2, type=int, help="number of worker threads")
+    parser.add_argument('--num_procs', '-n', default=8, type=int, help="number of worker processes")
     parser.add_argument('--log_level', '-l', type=str, default="warning", \
             choices=['critical', 'error', 'warning', 'info', 'debug'], help="log level of converter")
     parser.add_argument('--output', '-o', metavar="file-or-dir", type=str, nargs="+", help="output maps", required=True)
@@ -255,8 +256,8 @@ if __name__ == "__main__":
     else:
         args.input_calib_json = None
     
-    threads = []
-    file_id_counter = AtomicInteger(0)
+    procs = []
+    file_id_counter = AtomicIntegerProc(0)
 
     all_source_files = []
     all_target_files = []
@@ -301,13 +302,13 @@ if __name__ == "__main__":
                     logger.debug(f"create directory {out_entry}")
                     os.makedirs(out_entry, exist_ok=True)
    
-    if args.num_threads == 1:
+    if args.num_procs == 1:
         run(file_id_counter, all_source_files, all_target_files, 0, args)
     else:
-        for thread_id in range(args.num_threads):
-            my_thread = threading.Thread(target=run, args=(file_id_counter, all_source_files, all_target_files, thread_id, args))
-            threads.append(my_thread)
-            my_thread.start()
+        for proc_id in range(args.num_procs):
+            my_proc = Process(target=run, args=(file_id_counter, all_source_files, all_target_files, proc_id, args))
+            procs.append(my_proc)
+            my_proc.start()
         
-        for thread_id in range(args.num_threads):
-            threads[thread_id].join()
+        for proc_id in range(args.num_procs):
+            procs[proc_id].join()
