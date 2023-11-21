@@ -232,20 +232,6 @@ def run(id_counter, source_files, colormaps, target_files, thread_id, args):
             pbar.n = min(len(source_files), cur_id+1)
             pbar.refresh()
 
-def is_supported_data_file(path: str):
-    if os.path.isfile(path):
-        ext = os.path.splitext(path)[-1].lower()
-        if ext in [".tif", ".tiff", ".exr"]:
-            return True
-    return False
-
-def is_supported_colormap_file(path: str):
-    if os.path.isfile(path):
-        ext = os.path.splitext(path)[-1].lower()
-        if ext in [".tif", ".tiff", ".png", ".jpeg", ".jpg", ".webp"]:
-            return True
-    return False
-
 def get_stem(path: str):
     return os.path.splitext(path)[0]
 

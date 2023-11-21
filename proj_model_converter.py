@@ -12,11 +12,12 @@ import os
 #import cv2
 import tqdm
 import torch
+import glob
 
 PROJ_CONV_LOGGER_NAME = "Proj Model Converter"
 
 def get_in_and_out_files(source_dir: str, target_dir: str):
-    basenames = [os.path.basename(f) for f in sorted(glob.glob(f"{source_dir}/*")) if is_supported_data_file(f)]
+    basenames = [os.path.basename(f) for f in sorted(glob.glob(f"{source_dir}/*")) if is_supported_input_file(f)]
     source_files = [os.path.join(source_dir, bname) for bname in basenames]
     target_files = [os.path.join(target_dir, bname) for bname in basenames]
     return source_files, target_files

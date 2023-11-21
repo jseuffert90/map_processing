@@ -121,3 +121,22 @@ def plot_data(data, name, vmin=None, vmax=None, cmap='jet'):
     plt.imshow(data, vmin=vmin, vmax=vmax, cmap=cmap)
     plt.colorbar()
     plt.show()
+
+def is_supported_data_file(path: str):
+    if os.path.isfile(path):
+        ext = os.path.splitext(path)[-1].lower()
+        if ext in [".tif", ".tiff", ".exr"]:
+            return True
+    return False
+
+def is_supported_colormap_file(path: str):
+    if os.path.isfile(path):
+        ext = os.path.splitext(path)[-1].lower()
+        if ext in [".tif", ".tiff", ".png", ".jpeg", ".jpg", ".webp"]:
+            return True
+    return False
+
+def is_supported_input_file(path: str):
+    if is_supported_data_file(path):
+        return True
+    return is_suppoerted_colormap_file(path)
