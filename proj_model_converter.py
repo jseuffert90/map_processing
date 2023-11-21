@@ -107,11 +107,11 @@ def run(id_counter, source_files, target_files, thread_id, args):
                 mapping[:, :, :, 0] = -1 + (1 / w) + mapping[:, :, :, 0] * (2 / w)
                 mapping[:, :, :, 1] = -1 + (1 / h) + mapping[:, :, :, 1] * (2 / h)
 
-                print(f"{rays[3, 1010, 0]=}")
-                print(f"{rays[3, 1010, 1]=}")
-                print(f"{rays[3, 1010, 2]=}")
-                print(f"{mapping[0, 3, 1010, 0]=}")
-                print(f"{mapping[0, 3, 1010, 1]=}")
+                # print(f"{rays[3, 1010, 0]=}")
+                # print(f"{rays[3, 1010, 1]=}")
+                # print(f"{rays[3, 1010, 2]=}")
+                # print(f"{mapping[0, 3, 1010, 0]=}")
+                # print(f"{mapping[0, 3, 1010, 1]=}")
 
                 if args.debug_plot:
                     plot_data(rays[:, :, 0], "light ray's x coordinate")
