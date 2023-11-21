@@ -170,11 +170,11 @@ def rays_to_equidist(rays, map_shape, fov_x, fov_y):
     theta = np.arccos(z / np.linalg.norm(rays, axis=2))
     theta[z != z] = float('nan')
     # plot_data(theta, "Theta map of reays_to_equidist")
-    print(f"{theta.dtype=}")
+    # print(f"{theta.dtype=}")
 
     rho = theta * f
-    print(f"{rho[3, 1010]=}")
-    print(f"{theta[3, 1010]=}")
+    # print(f"{rho[3, 1010]=}")
+    # print(f"{theta[3, 1010]=}")
 
     u_r = rays[:, :, :2]
     u_r /= np.linalg.norm(u_r, axis=2, keepdims=True)
@@ -201,7 +201,7 @@ def rays_to_m9(rays, map_shape, fov_x, fov_y, calib_json):
     theta = np.arccos(z / np.linalg.norm(rays, axis=2))
     theta[z != z] = float('nan')
     # plot_data(theta, "Theta map of reays_to_equidist")
-    print(f"{theta.dtype=}")
+    # print(f"{theta.dtype=}")
 
     fx = calib_json["fx"]
     fy = calib_json["fy"]
