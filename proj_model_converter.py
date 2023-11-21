@@ -22,7 +22,10 @@ def get_in_and_out_files(source_dir: str, target_dir: str):
     return source_files, target_files
 
 def run(id_counter, source_files, target_files, thread_id, args):
-    fov_rad = args.fov / 180.0 * np.pi
+    fov_rad_in_x = args.fov_in_x / 180.0 * np.pi
+    fov_rad_in_y = args.fov_in_y / 180.0 * np.pi
+    fov_rad_out_x = args.fov_out_x / 180.0 * np.pi
+    fov_rad_out_y = args.fov_out_y / 180.0 * np.pi
     
     logger = logging.getLogger(PROJ_CONV_LOGGER_NAME)
 
@@ -66,13 +69,13 @@ def run(id_counter, source_files, target_files, thread_id, args):
                 source_height, source_width = cur_source_height, cur_source_width
                 source_shape = (source_height, source_width)
                 
-                rays = eval(f"get_rays_{args.output_model.name.lower()}(target_shape, fov_rad, fov_rad)")
+                rays = eval(f"get_rays_{args.output_model.name.lower()}(target_shape, fov_rad_out_x, fov_rad_out_y)")
                 
                 if args.input_model.name.lower() == "m9":
-                    mapping = eval(f"rays_to_m9(rays, source_shape, fov_rad, fov_rad, args.input_calib_json)")
+                    mapping = eval(f"rays_to_m9(rays, source_shape, fov_rad_in_x, fov_rad_in_y, args.input_calib_json)")
                 else:
-                    mapping = eval(f"rays_to_{args.input_model.name.lower()}(rays, source_shape, fov_rad, fov_rad)")
-                # mapping = rays_to_equidist(rays, source_shape, fov_rad, fov_rad)
+                    mapping = eval(f"rays_to_{args.input_model.name.lower()}(rays, source_shape, fov_rad_in_x, fov_rad_in_y)")
+                # mapping = rays_to_equidist(rays, source_shape, fov_rad_in_x, fov_rad_in_y)
                 #mapping = mapping.astype(np.float32)
                 mapping = torch.from_numpy(mapping)
                 mapping = mapping[None] # H, W, 2 -> N, H, W, 2
@@ -149,7 +152,12 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Projection Model Converter')
     parser.add_argument('--dryrun', '-d', action="store_true", help="does not save files nor create directories")
-    parser.add_argument('--fov', '-f', type=float, default="180.0", help="field of view in degrees", required=True)
+    parser.add_argument('--fov_in', '-f', type=float, default=None, help="field of view (x and y direction) in degrees of input map or image [def: 180]", required=False)
+    parser.add_argument('--fov_in_x', type=float, default=None, help="field of view (x direction) in degrees of input map or image [def: 180]", required=False)
+    parser.add_argument('--fov_in_y', type=float, default=None, help="field of view (y direction) in degrees of input map or image [def: 180]", required=False)
+    parser.add_argument('--fov_out', type=float, default=None, help="field of view (x and y direction) in degrees of output map or image [def: 180]", required=False)
+    parser.add_argument('--fov_out_x', type=float, default=None, help="field of view (x direction) in degrees of output map or image [def: 180]", required=False)
+    parser.add_argument('--fov_out_y', type=float, default=None, help="field of view (y direction) in degrees of output map or image [def: 180]", required=False)
     parser.add_argument('--input', '-i', metavar="file-or-dir", type=str, nargs="+", help="input maps", required=True)
     parser.add_argument('--input_model', '-a', type=str, choices=[x.name for x in ProjModel], \
             help="projection model of input file", required=True)
@@ -183,6 +191,51 @@ if __name__ == "__main__":
     if args.output_height is not None and args.output_height <= 0:
         logger.error("output width must be positive or None")
         exit(1)
+
+    # postprocess input FOV:
+    if args.fov_in is not None:
+        if args.fov_in_x is not None:
+            logger.error("Please provide --fov_in xor --fov_in_x or none of them but not both.")
+            exit(1)
+        else:
+            args.fov_in_x = args.fov_in
+        if args.fov_in_y is not None:
+            logger.error("Please provide --fov_in xor --fov_in_y or none of them but not both.")
+            exit(1)
+        else:
+            args.fov_in_y = args.fov_in
+    else:
+        # args.fov_in is None
+        if args.fov_in_x is None:
+            args.fov_in_x = 180.0
+        if args.fov_in_y is None:
+            args.fov_in_y = 180.0
+
+    assert args.fov_in_x is not None
+    assert args.fov_in_y is not None
+
+    # postprocess output FOV:
+    if args.fov_out is not None:
+        if args.fov_out_x is not None:
+            logger.error("Please provide --fov_out xor --fov_out_x or none of them but not both.")
+            exit(1)
+        else:
+            args.fov_out_x = args.fov_out
+        if args.fov_out_y is not None:
+            logger.error("Please provide --fov_out xor --fov_out_y or none of them but not both")
+            exit(1)
+        else:
+            args.fov_out_y = args.fov_out
+    else:
+        # args.fov_out is None
+        if args.fov_out_x is None:
+            args.fov_out_x = 180.0
+        if args.fov_out_y is None:
+            args.fov_out_y = 180.0
+
+    assert args.fov_out_x is not None
+    assert args.fov_out_y is not None
+
 
     if args.input_calib is not None:
         with open(args.input_calib) as calib:

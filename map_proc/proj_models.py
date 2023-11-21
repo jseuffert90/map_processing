@@ -10,6 +10,7 @@ class ProjModel(Enum):
     EQUIDIST = 1
     EPIPOL_EQUIDIST = 2
     M9 = 3
+    ERP = 4
 
 def fov_rays_through_pixel_center(fov, side_length):
     '''Converts the FOV into solid angle of rays traversing pixel centers only
@@ -100,7 +101,50 @@ def get_rays_epipol_equidist(shape, fov_x, fov_y):
     
     return rays
 
+def get_rays_erp(shape, fov_x, fov_y):
+    '''Light ray calculation for an image following the epirectangular (ERP) projection model
+
+    Parameters
+    ----------
+    shape : tuple of int
+        shape of the image that should be rectified (height, width)
+    fov_x : float
+        field of view x direction
+    fov_y : float
+        field of view y direction
+
+    Returns
+    -------
+    rays : np.ndarray of float
+        light rays for each pixel
+    '''
+
+    height, width = shape
+    fov_center_pixel_x = fov_rays_through_pixel_center(fov_x, width)
+    fov_center_pixel_y = fov_rays_through_pixel_center(fov_y, height)
+    
+    max_phi   = fov_center_pixel_x / 2
+    max_theta = fov_center_pixel_y / 2
+
+    x_lin_space = np.linspace(-max_phi, max_phi, width)
+    y_lin_space = np.linspace(-max_theta, max_theta, height)
+    phi, theta = np.meshgrid(x_lin_space, y_lin_space)
+
+    x_unit_sphere = np.cos(theta) * np.sin(phi)
+    y_unit_sphere = np.sin(theta)
+    z_unit_sphere = np.cos(theta) * np.cos(phi)
+
+    rays = stack_coords(x_unit_sphere, y_unit_sphere, z_unit_sphere)
+    
+    return rays
+
+def get_rays_m9(shape, fov_x, fov_y):
+    raise NotImplementedError("function has not been implemented yet")
+
 def rays_to_epipol_equidist(rays, map_shape, fov_x, fov_y):
+    raise NotImplementedError("function has not been implemented yet")
+
+def rays_to_erp(rays, map_shape, fov_x, fov_y):
     raise NotImplementedError("function has not been implemented yet")
 
 def rays_to_equidist(rays, map_shape, fov_x, fov_y):
