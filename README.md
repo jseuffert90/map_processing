@@ -43,12 +43,17 @@ Hereinafter, scripts providing a main function are introduced:
 - tqdm (v4.46+)
 - Open3D (only for `viz_pc.py`; v0.15.1+)
 - a matplotlib GUI backend like: pyqt5 (v5.15+)
+- system packages: cm-super, dvipng, python3-venv, texlive-latex-extra
 
-The script `create_env.sh` creates a virtual Python environment with all dependencies installed.
-However, Open3D is only installed if available for the current Python version.
+Please install the required system packages first:
+```bash
+sudo apt install cm-super dvipng python3-venv texlive-latex-extra
+```
+
+The script `create_env.sh` creates a virtual Python environment with all (python)
+dependencies installed. However, Open3D is only installed if available for the current Python version.
 If no such package is present, the user has to build his or her own Open3D wheel package.
 Please confer http://www.open3d.org/docs/release/compilation.html.
-The package `python3-venv` is required to create virtual environments.
 
 ## References
 
