@@ -24,6 +24,9 @@ Hereinafter, scripts providing a main function are introduced:
 - `mapviewer.py`:
   The mapviewer is reminiscent of the program `tifffile` of the pip package `tifffile`.
   However, the mapviewer can plot multiple tiffs or maps at once and ignores NaNs for adjusting the range of the axis.
+- `map_stats.py`:
+  This script examines a set of input maps and collect statistics on each input map, such as:  
+  Number of NaN values, number of +- inf values, number of 0s, number of real values, minimum, maximum and mean values over all real values 
 - `viz_pc.py`:
   This script makes a video from a point cloud.
 
