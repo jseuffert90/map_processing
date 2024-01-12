@@ -64,7 +64,6 @@ def run(id_counter, input_maps, gt_maps, abs_target_files, rel_target_files, pro
 def get_fid(fname: str, logger=None):
     all_numbers_as_str = re.findall(r'\d+', fname)
     fid = int(sorted(all_numbers_as_str, key=len)[-1])
-    print(f"{fid=}")
     return fid
 
 if __name__ == "__main__":
