@@ -58,7 +58,7 @@ def run(id_counter, input_maps, gt_maps, abs_target_files, rel_target_files, pro
                 write_data(rel_error_path, rel_error_map)
             
             cur_id = id_counter.getAndInc()
-            pbar.n = min(len(source_files), cur_id+1)
+            pbar.n = min(len(input_maps), cur_id+1)
             pbar.refresh()
 
 def get_fid(fname: str, logger=None):
