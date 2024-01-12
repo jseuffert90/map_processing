@@ -8,6 +8,7 @@ equidistant, equipolar equidistant, (partially) perspective
 Hereinafter, scripts providing a main function are introduced:
 - `calc_error_metrics.py`:  
   This script calculates MAE and RMSE of multiple error maps for regions in which all maps are valid.
+- `calc_l1_error_maps.py`: Calculates error maps by taking the absolute value of the subtraction of a map and it's ground truth.
 - `det_depth_from_point_corresp.py`:  
   This script opens a GUI and allows to manually select point correspondences to manually retrieve the depth of a pixel.
 - `map_converter.py`:
