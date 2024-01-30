@@ -322,7 +322,7 @@ if __name__ == "__main__":
             exit(1)
 
     procs = []
-    file_id_counter = AtomicInteger(0)
+    file_id_counter = AtomicIntegerProc(0)
 
     all_source_files = []
     all_colormaps = []
