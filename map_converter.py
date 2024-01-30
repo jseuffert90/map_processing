@@ -7,6 +7,7 @@ from map_proc.proj_models import *
 
 import argparse
 import logging
+from multiprocessing import Process
 import os
 
 import glob
@@ -161,7 +162,7 @@ def read_colors(path: str):
         raise ValueError(f"only 8 bit or 16 bit unsigned int formats are supported")
     return cmap
 
-def run(id_counter, source_files, colormaps, target_files, thread_id, args):
+def run(id_counter, source_files, colormaps, target_files, proc_id, args):
     fov_rad = args.fov / 180.0 * np.pi
 
     from_to_args = {
@@ -174,7 +175,7 @@ def run(id_counter, source_files, colormaps, target_files, thread_id, args):
 
     height, width, rays = None, None, None
     
-    with tqdm.tqdm(total=len(source_files), disable=(thread_id > 0)) as pbar:
+    with tqdm.tqdm(total=len(source_files), disable=(proc_id > 0)) as pbar:
         cur_id = id_counter.getAndInc()
         while cur_id < len(source_files):
             input_path = source_files[cur_id]
@@ -186,6 +187,13 @@ def run(id_counter, source_files, colormaps, target_files, thread_id, args):
                 colormap = read_colors(cmap_path)
 
             data = read_data(input_path)
+            
+            if args.repl_value is not None:
+                rep, by = args.repl_value.split(";")
+                rep = float(rep)
+                by = float(by)
+                data[data == rep] = by
+
             if args.input_scale != 1.0:
                 data *= args.input_scale
 
@@ -281,7 +289,7 @@ if __name__ == "__main__":
             help="type of each input map")
     parser.add_argument('--log_level', '-l', type=str, default="warning", \
             choices=['critical', 'error', 'warning', 'info', 'debug'], help="log level of converter")
-    parser.add_argument('--num_threads', '-n', default=2, type=int, help="number of worker threads")
+    parser.add_argument('--num_procs', '-n', default=multiprocessing.cpu_count(), type=int, help="number of worker procs")
     parser.add_argument('--output', '-o', metavar="file-or-dir", type=str, nargs="+", help="output maps")
     parser.add_argument('--output_scale', default=1.0, type=float, help="scales output map values")
     parser.add_argument('--output_type', '-b', metavar="out_type", type=str, required=True, \
@@ -290,6 +298,9 @@ if __name__ == "__main__":
             default="EQUIDIST", help="projection model")
     parser.add_argument('--repl_str', '-r', type=str, help="replace str in input file name by another str " \
             + "in output file name (e.g. '_depth;_pdisp' replaces '_depth' by '_pdisp')")
+    parser.add_argument('--repl_value', '-v', type=str, help="replace certain value a by value b in input map before processing (default: None / do not replace anything)" \
+            + ", e.g. '1.0;nan' replaces 1.0 by NaN")
+    
     parser.add_argument('--stop_after', '-s', type=int, metavar="N", help="stop after processing N files")
     parser.add_argument('--target_ext', '-t', type=str, help="target file extension, e.g. '.tiff'; " \
             + "if not provided: derived from input file extension")
@@ -310,7 +321,7 @@ if __name__ == "__main__":
             logger.error("Baseline needed if calculations are based on disparity.")
             exit(1)
 
-    threads = []
+    procs = []
     file_id_counter = AtomicInteger(0)
 
     all_source_files = []
@@ -399,10 +410,10 @@ if __name__ == "__main__":
     if len(all_colormaps) == 0:
         all_colormaps = None
 
-    for thread_id in range(args.num_threads):
-        my_thread = threading.Thread(target=run, args=(file_id_counter, all_source_files, all_colormaps, all_target_files, thread_id, args))
-        threads.append(my_thread)
-        my_thread.start()
+    for proc_id in range(args.num_procs):
+        my_proc = Process(target=run, args=(file_id_counter, all_source_files, all_colormaps, all_target_files, proc_id, args))
+        procs.append(my_proc)
+        my_proc.start()
     
-    for thread_id in range(args.num_threads):
-        threads[thread_id].join()
+    for proc_id in range(args.num_procs):
+        procs[proc_id].join()
