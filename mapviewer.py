@@ -166,6 +166,15 @@ if __name__ == "__main__":
     for i, axis in enumerate(axes_ravel):
         if i < num_images:
             handle = axis.imshow(images[i], vmin=min_val, vmax=max_val, cmap=args.cmap)
+
+            cmap = plt.cm.gnuplot2
+            norm = plt.Normalize(vmin=min_val, vmax=max_val)
+            print(f"{max_val=}")
+            # map the normalized data to colors
+            # image is now RGBA (512x512x4) 
+            imageOut = cmap(norm(images[i]))
+            plt.imsave('/tmp/test.png', imageOut)
+
             if args.names is not None and len(args.names) > i:
                 t = args.names[i]
             else:
