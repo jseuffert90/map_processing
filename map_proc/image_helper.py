@@ -112,7 +112,7 @@ def read_image(path: str):
     return np.array(Image.open(path)) 
 
 def write_image(path: str, img_np):
-    Image.fromarray(img_np).save(path)
+    Image.fromarray(img_np).save(path, lossless=True)
 
 def plot_data(data, name, vmin=None, vmax=None, cmap='jet'):
     plt.figure()
