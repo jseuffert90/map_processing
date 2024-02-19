@@ -78,15 +78,7 @@ if __name__ == "__main__":
 
     images = []
     for f in args.file:
-        _, ext = os.path.splitext(f)
-        ext = ext.lower()
-
-        if ext == ".tif" or ext == ".tiff":
-            image = tifffile.imread(f)
-        elif ext == ".exr":
-            image = import_exr_grayscale(f)
-        else:
-            image = read_image(f)
+        image = read_data(f)
 
         if args.abs:
             image = np.abs(image)
@@ -95,6 +87,7 @@ if __name__ == "__main__":
         if len(image.shape) != 2:
             logger.error("only maps with a single channel and a single page are supported")
             exit(1)
+        logger.debug(f"{image.shape=}")
         images.append(image)
 
     num_images = len(args.file)
@@ -124,6 +117,7 @@ if __name__ == "__main__":
 
     min_val = args.vmin
     if min_val is None:
+        logger.debug(f"{images[0].shape=}")
         min_val = np.min(images[0])
         for i in range(1, len(images)):
             min_val = min(np.min(images[i]), min_val)

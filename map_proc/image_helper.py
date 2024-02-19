@@ -2,6 +2,7 @@ from .pointcloud import PointCloud
 
 import logging
 import os
+import re
 
 import Imath
 import matplotlib.pyplot as plt
@@ -9,6 +10,7 @@ import numpy as np
 import OpenEXR
 from PIL import Image
 import tifffile
+import torch
 
 IMAGE_HELPER_LOGGER_NAME = "Image Helper"
 
@@ -59,7 +61,25 @@ def export_exr_grayscale(map_np: np.ndarray, file_path: str):
     exr.writePixels({'Y': pixels})
     exr.close()
 
-def read_data(path: str):
+def read_data(path: str, indexing=None):
+    """
+    Read input map or tensor
+
+    If the input is a multi-dim. tensor, an indexing string should be provided
+    that is used to extract a 2D map out of the tensor.
+    
+    Example tensor shape: [48, 2, 1024, 1024]
+    Example indexing string: "0, 0, :, :"
+    Example output: 2D map of shape [1024, 1024]
+
+    :param path: the path to the input map or tensor
+    :type path: str
+    :param indexing: indexing string
+    :type indexing: str
+    :rtype: np.ndarray
+    :returns: map as array
+    """
+
     logger = logging.getLogger(IMAGE_HELPER_LOGGER_NAME)
     ext = os.path.splitext(path)[-1].lower()
     if ext in [".tif", ".tiff"]:
@@ -71,6 +91,22 @@ def read_data(path: str):
             data = data[1, :, :]
     elif ext == ".exr":
         data = import_exr_grayscale(path)
+    elif ext == ".pt":
+        # torch tensor
+        data = torch.load(path)
+        if indexing is not None:
+
+            # some security checks...
+            illegal_chars = re.findall(r'[^ ,:\d]', indexing)
+            if len(indexing) > 32:
+                logger.error("indexing string to long (only up to 32 characters supported)")
+                return None
+            if len(illegal_chars) > 0:
+                logger.error(f"found illegal characters in indexing string: {illegal_chars}")
+                return None
+            
+            data = eval(f"data[{indexing}]")
+        data = data.detach().cpu().numpy()
     else:
         data = read_image(path)
     return data
@@ -105,6 +141,8 @@ def write_data(path: str, data, colormap=None):
             cloud = PointCloud(data_Nx3, colors_Nx3)
 
         cloud.save(path)
+    elif ext == ".pt":
+        torch.save(torch.from_numpy(data), path)
     else:
         write_image(path, data)
 
@@ -125,7 +163,7 @@ def plot_data(data, name, vmin=None, vmax=None, cmap='jet'):
 def is_supported_data_file(path: str):
     if os.path.isfile(path):
         ext = os.path.splitext(path)[-1].lower()
-        if ext in [".tif", ".tiff", ".exr"]:
+        if ext in [".tif", ".tiff", ".exr", ".pt"]:
             return True
     return False
 
