@@ -28,8 +28,16 @@ Hereinafter, scripts providing a main function are introduced:
 - `map_stats.py`:
   This script examines a set of input maps and collect statistics on each input map, such as:  
   Number of NaN values, number of +- inf values, number of 0s, number of real values, minimum, maximum and mean values over all real values 
+- `view_stats.py`:
+  This script displays histograms or binned function values. It can be used to view the results of `xy_mapper.py`.
 - `viz_pc.py`:
   This script makes a video from a point cloud.
+- `xy_mapper.py`:
+  This script finds in a x map x values and averages their corresponding y values (input maps / same (i,j)-position as for x map).
+  Example:  
+    x map could be the angle between an axis and an incomming light ray.  
+    y maps could be some error maps.  
+    result: (Binned) graph that maps the angle onto the mean error
 
 ## Dependencies
 
