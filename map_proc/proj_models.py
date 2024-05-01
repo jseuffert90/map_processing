@@ -141,6 +141,59 @@ def get_rays_erp(shape, fov_x, fov_y):
 def get_rays_m9(shape, fov_x, fov_y):
     raise NotImplementedError("function has not been implemented yet")
 
+def get_rays_perspective(shape, fov_x, fov_y):
+    '''Light ray calculation for an image following the epirectangular (ERP) projection model
+
+    Parameters
+    ----------
+    shape : tuple of int
+        shape of the image that should be rectified (height, width)
+    fov_x : float
+        field of view x direction
+    fov_y : float
+        field of view y direction
+
+    Returns
+    -------
+    rays : np.ndarray of float
+        light rays for each pixel
+    '''
+
+    height, width = shape
+
+    focal_x = (width / 2) / np.tan(fov_x / 2)
+    focal_y = (height / 2) / np.tan(fov_y / 2)
+
+    print(f"{fov_x=}")
+    print(f"{focal_x=}")
+
+    c_x = (width - 1) / 2
+    c_y = (height - 1) / 2
+
+    x_lin_space = np.linspace(0, width - 1, width)
+    y_lin_space = np.linspace(0, height - 1, height)
+    x_image, y_image = np.meshgrid(x_lin_space, y_lin_space, indexing='xy')
+    
+    x_norm = (x_image - c_x) / focal_x
+    y_norm = (y_image - c_y) / focal_y
+
+    print(f"{np.min(x_image)=}")
+    print(f"{np.max(x_image)=}")
+    print(f"{np.min(x_norm)=}")
+    print(f"{np.max(x_norm)=}")
+
+    r = np.sqrt(x_norm**2 + y_norm**2)
+    theta = np.arctan(r)
+    phi = np.arctan2(y_norm, x_norm)
+
+    x_unit_sphere = np.cos(phi) * np.sin(theta)
+    y_unit_sphere = np.sin(phi) * np.sin(theta)
+    z_unit_sphere = np.cos(theta)
+
+    rays = stack_coords(x_unit_sphere, y_unit_sphere, z_unit_sphere)
+    
+    return rays
+
 def rays_to_epipol_equidist(rays, map_shape, fov_x, fov_y):
     raise NotImplementedError("function has not been implemented yet")
 
