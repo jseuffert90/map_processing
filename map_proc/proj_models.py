@@ -164,9 +164,6 @@ def get_rays_perspective(shape, fov_x, fov_y):
     focal_x = (width / 2) / np.tan(fov_x / 2)
     focal_y = (height / 2) / np.tan(fov_y / 2)
 
-    print(f"{fov_x=}")
-    print(f"{focal_x=}")
-
     c_x = (width - 1) / 2
     c_y = (height - 1) / 2
 
@@ -176,11 +173,6 @@ def get_rays_perspective(shape, fov_x, fov_y):
     
     x_norm = (x_image - c_x) / focal_x
     y_norm = (y_image - c_y) / focal_y
-
-    print(f"{np.min(x_image)=}")
-    print(f"{np.max(x_image)=}")
-    print(f"{np.min(x_norm)=}")
-    print(f"{np.max(x_norm)=}")
 
     r = np.sqrt(x_norm**2 + y_norm**2)
     theta = np.arctan(r)
