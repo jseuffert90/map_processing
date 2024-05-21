@@ -103,7 +103,7 @@ def from_pdisp(pdisp_map: np.ndarray, rays, method_args):
 
 def to_depth(pc: np.ndarray, method_args):
     assert pc.shape[2] == 3, "The shape of the ordered point cloud must be [height, width, 3]"
-    return pc[2]
+    return pc[:, :, 2]
 
 def to_dist(pc: np.ndarray, method_args): 
     assert pc.shape[2] == 3, "The shape of the ordered point cloud must be [height, width, 3]"
