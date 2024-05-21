@@ -71,7 +71,11 @@ def run(id_counter, source_files, target_files, proc_id, args):
                 source_height, source_width = cur_source_height, cur_source_width
                 source_shape = (source_height, source_width)
                 
-                rays = eval(f"get_rays_{args.output_model.name.lower()}(target_shape, fov_rad_out_x, fov_rad_out_y)")
+                if args.output_model.name.lower() == "m9":
+                    rays = eval(f"get_rays_m9, target_shape, fov_rad_out_x, fov_rad_out_y, args.output_calib_json)")
+                else:
+                    rays = eval(f"get_rays_{args.output_model.name.lower()}(target_shape, fov_rad_out_x, fov_rad_out_y)")
+
                 
                 if args.input_model.name.lower() == "m9":
                     mapping = eval(f"rays_to_m9(rays, source_shape, fov_rad_in_x, fov_rad_in_y, args.input_calib_json)")
@@ -171,18 +175,19 @@ if __name__ == "__main__":
     parser.add_argument('--fov_out_x', type=float, default=None, help="field of view (x direction) in degrees of output map or image [def: 180]", required=False)
     parser.add_argument('--fov_out_y', type=float, default=None, help="field of view (y direction) in degrees of output map or image [def: 180]", required=False)
     parser.add_argument('--input', '-i', metavar="file-or-dir", type=str, nargs="+", help="input maps", required=True)
+    parser.add_argument('--input_calib', type=str, help="calibration file of input camera [json] (only for M9 model)")
     parser.add_argument('--input_model', '-a', type=str, choices=[x.name for x in ProjModel], \
             help="projection model of input file", required=True)
     parser.add_argument('--num_procs', '-n', default=8, type=int, help="number of worker processes")
     parser.add_argument('--log_level', '-l', type=str, default="warning", \
             choices=['critical', 'error', 'warning', 'info', 'debug'], help="log level of converter")
     parser.add_argument('--output', '-o', metavar="file-or-dir", type=str, nargs="+", help="output maps", required=True)
+    parser.add_argument('--output_calib', type=str, help="calibration file of output camera [json] (only for M9 model)")
     parser.add_argument('--output_model', '-b', type=str, choices=[x.name for x in ProjModel], \
             help="projection model of output file", required=True)
     parser.add_argument('--output_width', type=int, help="output width (default: same as input width)")
     parser.add_argument('--output_height', type=int, help="output width (default: same as input width)")
     parser.add_argument('--mask_out', type=float, default=None, help="replace pixels in output map by MASK_OUT if there's no compiant in input map [def: None]")
-    parser.add_argument('--input_calib', type=str, help="calibration file of input camera [json]")
     parser.add_argument('--debug_plot', action='store_true', help="plot some debug maps")
     args = parser.parse_args()
     
@@ -249,12 +254,17 @@ if __name__ == "__main__":
     assert args.fov_out_x is not None
     assert args.fov_out_y is not None
 
-
     if args.input_calib is not None:
         with open(args.input_calib) as calib:
             args.input_calib_json = json.loads(calib.read())
     else:
         args.input_calib_json = None
+    
+    if args.output_calib is not None:
+        with open(args.output_calib) as calib:
+            args.output_calib_json = json.loads(calib.read())
+    else:
+        args.output_calib_json = None
     
     procs = []
     file_id_counter = AtomicIntegerProc(0)

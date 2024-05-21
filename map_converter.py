@@ -11,6 +11,7 @@ from multiprocessing import Process
 import os
 
 import glob
+import json
 import numpy as np
 from PIL import Image
 import tifffile
@@ -201,7 +202,11 @@ def run(id_counter, source_files, colormaps, target_files, proc_id, args):
             if rays is None or cur_height != height or cur_width != width:
                 # rays do not match the current image -> recalculate
                 height, width = cur_height, cur_width
-                rays = eval(f"get_rays_{args.proj_model.name.lower()}((height, width), fov_rad, fov_rad)")
+
+                if args.proj_model.name.lower() == "m9":
+                    rays = get_rays_m9((height, width), fov_rad, fov_rad, args.calib_json)
+                else:
+                    rays = eval(f"get_rays_{args.proj_model.name.lower()}((height, width), fov_rad, fov_rad)")
 
             if cur_width != width or cur_height != height:
                 raise ValueError("All input files must have the same dimensions.")
@@ -275,6 +280,7 @@ if __name__ == "__main__":
     parser.add_argument('--baseline', type=float, default=None, \
             help="baseline of stereo camera pair (same unit as depth)")
     parser.add_argument('--dryrun', '-d', action="store_true", help="does not save files nor create directories")
+    parser.add_argument('--calib', type=str, help="calibration file of camera [json] (only for M9 model)")
     parser.add_argument('--colormap', '-c', metavar="file-or-dir", type=str, \
             nargs="+", \
             help="provide a color map for point cloud generation " \
@@ -320,6 +326,12 @@ if __name__ == "__main__":
         if args.baseline is None:
             logger.error("Baseline needed if calculations are based on disparity.")
             exit(1)
+    
+    if args.calib is not None:
+        with open(args.calib) as calib:
+            args.calib_json = json.loads(calib.read())
+    else:
+        args.calib_json = None
 
     procs = []
     file_id_counter = AtomicIntegerProc(0)

@@ -1,6 +1,7 @@
 # from .image_helper import *
 
 from enum import Enum
+import sys
 
 import numpy as np
 from .image_helper import write_data
@@ -138,8 +139,67 @@ def get_rays_erp(shape, fov_x, fov_y):
     
     return rays
 
-def get_rays_m9(shape, fov_x, fov_y):
-    raise NotImplementedError("function has not been implemented yet")
+def get_rays_m9(shape, fov_x, fov_y, calib_json):
+    height, width = shape
+
+    fx = calib_json["fx"]
+    fy = calib_json["fy"]
+    cx = calib_json["cx"]
+    cy = calib_json["cy"]
+    k0 = calib_json["k0"]
+    k1 = calib_json["k1"]
+    k2 = calib_json["k2"]
+    k3 = calib_json["k3"]
+    k4 = calib_json["k4"]
+
+    x_img_space = np.linspace(0, width - 1, width)
+    y_img_space = np.linspace(0, height - 1, height)
+    xx, yy = np.meshgrid(x_img_space, y_img_space, indexing='xy')
+    xx_norm = (xx - cx) / fx
+    yy_norm = (yy - cy) / fy
+
+    phi = np.arctan2(yy_norm, xx_norm) % (2 * np.pi) # azimuth
+    rho = np.sqrt(xx_norm**2 + yy_norm**2)
+    assert np.all(rho < np.inf)
+    
+    theta_0 = rho
+    best_theta = theta_0
+    epsilon = 1e-6
+    num_it = 1000
+    for i in range(num_it + 1):
+        theta = best_theta
+        theta_2 = theta*theta
+        theta_3 = theta_2*theta
+        theta_4 = theta_3*theta
+        theta_5 = theta_4*theta
+        theta_6 = theta_5*theta
+        theta_7 = theta_6*theta
+        theta_8 = theta_7*theta
+        theta_9 = theta_8*theta
+
+        assert np.all(theta_4 < np.inf)
+        assert np.all(theta_9 < np.inf)
+
+        assert np.all(theta_9 == theta_9)
+        assert np.all(rho == rho)
+        func_val = k0 * theta + k1 * theta_3 + k2 * theta_5 + k3 * theta_7 + k4 * theta_9 - rho
+        reproj_error_last_it = func_val
+        if np.all(reproj_error_last_it < epsilon):
+            break
+        if i == num_it:
+            print("FATAL: Did not find the inverse of the M9 projection function.", file=sys.stderr)
+            exit(1)
+        
+        func_1st_dev = k0 + k1 * (3* theta_2) + k2 * (5* theta_4) + k3 * (7 * theta_6) + k4 * (9 * theta_8)
+        best_theta = best_theta - func_val / func_1st_dev
+    
+    x_unit_sphere = np.cos(phi) * np.sin(best_theta)
+    y_unit_sphere = np.sin(phi) * np.sin(best_theta)
+    z_unit_sphere = np.cos(best_theta)
+
+    rays = stack_coords(x_unit_sphere, y_unit_sphere, z_unit_sphere)
+    
+    return rays
 
 def get_rays_perspective(shape, fov_x, fov_y):
     '''Light ray calculation for an image following the epirectangular (ERP) projection model
