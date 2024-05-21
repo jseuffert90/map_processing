@@ -55,6 +55,9 @@ def run(id_counter, source_files, target_files, proc_id, args):
             data = data.reshape(h, w, -1)
             data = torch.permute(data, (2, 0, 1)) # H, W, C -> C, H, W
             data = data[None] # N, C, H, W
+            
+            if args.input_scale != 1.0:
+                data *= args.input_scale
 
             cur_source_height, cur_source_width = data.shape[2:4]
             if args.output_width is None or args.output_height is None:
@@ -175,6 +178,7 @@ if __name__ == "__main__":
     parser.add_argument('--fov_out_x', type=float, default=None, help="field of view (x direction) in degrees of output map or image [def: 180]", required=False)
     parser.add_argument('--fov_out_y', type=float, default=None, help="field of view (y direction) in degrees of output map or image [def: 180]", required=False)
     parser.add_argument('--input', '-i', metavar="file-or-dir", type=str, nargs="+", help="input maps", required=True)
+    parser.add_argument('--input_scale', default=1.0, type=float, help="scales input map values")
     parser.add_argument('--input_calib', type=str, help="calibration file of input camera [json] (only for M9 model)")
     parser.add_argument('--input_model', '-a', type=str, choices=[x.name for x in ProjModel], \
             help="projection model of input file", required=True)
