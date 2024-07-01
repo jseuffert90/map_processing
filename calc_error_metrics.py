@@ -92,7 +92,7 @@ def main():
             logging.error(f"No input files found in directory {cur_input_dir} with pattern '{cur_input_regex}'")
             exit(1)
         if len(cur_input_files) != num_samples:
-            logging.error(f"Input directory {cur_input_dir} contains more samples than expected ({num_samples})")
+            logging.error(f"Input directory {cur_input_dir} contains more samples than expected (expected: {num_samples}; found: {len(cur_input_files)})")
             exit(1)
 
         cur_input_file_ids = [get_sample_id(os.path.basename(path)) for path in cur_input_files]
