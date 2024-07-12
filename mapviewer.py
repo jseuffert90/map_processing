@@ -35,6 +35,7 @@ if __name__ == "__main__":
             choices=['critical', 'error', 'warning', 'info', 'debug'], \
             default="warning", type=str, help="set the log level")
     parser.add_argument('--names', '-n', type=str, nargs="+", help="title or name for each subfigure (default: file name)")
+    parser.add_argument('--no_axes', '-a', action='store_true', help="do not plot axes")
     parser.add_argument('--outfile', '-o', type=str, help="output file (if set, no plots are shown on the display)")
     parser.add_argument('--title', '-t', type=str, help="title or figure")
     parser.add_argument('--vmax', type=float, \
@@ -170,6 +171,9 @@ if __name__ == "__main__":
   
     if args.no_colorbar == False:
         fig.colorbar(handle, ax=axes_ravel)
+
+    if args.no_axes == True:
+        plt.axis('off')
 
     if args.outfile is None:
         plt.show()
