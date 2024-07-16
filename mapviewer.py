@@ -10,6 +10,7 @@ import sys
 
 from matplotlib import rc
 import matplotlib.pyplot as plt
+from matplotlib.widgets import Slider
 import numpy as np
 import tifffile
 
@@ -19,6 +20,12 @@ def replace_invalid(map_or_img, rep_val):
     tmp_img[tmp_img == np.inf] = sys.float_info.min
     tmp_img[tmp_img == -np.inf] = sys.float_info.min
     return tmp_img
+
+def update_vmin_vmax(val):
+    vmin = vmin_slider.val
+    vmax = vmax_slider.val
+    for i in range(len(handles)):
+        handles[i].set_clim(vmin, vmax)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Displays multiple map files')
@@ -38,6 +45,7 @@ if __name__ == "__main__":
     parser.add_argument('--no_axes', '-a', action='store_true', help="do not plot axes")
     parser.add_argument('--outfile', '-o', type=str, help="output file (if set, no plots are shown on the display)")
     parser.add_argument('--title', '-t', type=str, help="title or figure")
+    parser.add_argument('--vask', action='store_true', help="show sliders to adjust vmin and vmax")
     parser.add_argument('--vmax', type=float, \
             help="maximum value to be in color range (default: max. observable value of all input files)")
     parser.add_argument('--vmin', type=float, \
@@ -144,6 +152,7 @@ if __name__ == "__main__":
     logger.debug(f"{n_rows=}")
     logger.debug(f"{n_cols=}")
 
+
     if figure_width is not None and figure_height is not None:
         fig, axes = plt.subplots(nrows=n_rows, ncols=n_cols, figsize=(figure_width, figure_height))
     else:
@@ -158,9 +167,11 @@ if __name__ == "__main__":
     else:
         axes_ravel = [axes]
 
+    handles = []
     for i, axis in enumerate(axes_ravel):
         if i < num_images:
             handle = axis.imshow(images[i], vmin=min_val, vmax=max_val, cmap=args.cmap)
+            handles += [handle]
             if args.names is not None and len(args.names) > i:
                 t = args.names[i]
             else:
@@ -176,6 +187,17 @@ if __name__ == "__main__":
         plt.axis('off')
 
     if args.outfile is None:
+        if args.vask:
+            v_start = min_val - 0.1 * (max_val - min_val)
+            v_stop = max_val + 0.1 * (max_val - min_val)
+            
+            vmin_slider_ax =  fig.add_axes([0.3, 0.05, 0.4, 0.075])
+            vmin_slider = Slider(vmin_slider_ax, 'min. value', v_start, v_stop, valinit=min_val)
+            vmin_slider.on_changed(update_vmin_vmax)
+            
+            vmax_slider_ax =  fig.add_axes([0.3, 0.0, 0.4, 0.075])
+            vmax_slider = Slider(vmax_slider_ax, 'max. value', v_start, v_stop, valinit=max_val)
+            vmax_slider.on_changed(update_vmin_vmax)
         plt.show()
     else:
         plt.savefig(args.outfile, dpi=(args.dpi if args.dpi is not None else 'figure'))
