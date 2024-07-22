@@ -93,9 +93,9 @@ if __name__ == "__main__":
             image = np.abs(image)
         image = image.squeeze()
 
-        if len(image.shape) != 2:
-            logger.error("only maps with a single channel and a single page are supported")
-            exit(1)
+        if len(image.shape) == 3:
+            logger.warning("Only maps with a single channel and a single page are supported. Taking first channel...")
+            image = image[:, :, 0]
         logger.debug(f"{image.shape=}")
         images.append(image)
 
