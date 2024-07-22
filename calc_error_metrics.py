@@ -102,7 +102,7 @@ def main():
             if sid not in samples:
                 samples[sid] = {}
             if cur_name in samples[sid]:
-                logging.error(f"found duplicate for {name}:")
+                logging.error(f"found duplicate for {cur_name}:")
                 logging.error(f"{samples[sid][cur_name]}")
                 logging.error(f"{cur_input_file}")
                 exit(1)
