@@ -7,6 +7,7 @@ import glob
 import logging
 import os
 import re
+import sys
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
@@ -14,10 +15,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tqdm
 
+LOGGER_NAME = 'calc error metrics'
+
 def get_sample_id(filename):
     numbers = re.findall(r'\d+', filename)
+    logger = logging.getLogger(LOGGER_NAME)
     if len(numbers) == 0:
-        logging.error(f"Could not determine sample id of file {filename}")
+        logger.error(f"Could not determine sample id of file {filename}")
         exit(1)
     num_digits = [len(n) for n in numbers]
     num_digits = np.array(num_digits)
@@ -44,38 +48,49 @@ def get_joint_valid_mask(error_maps):
     assert valid is not None
     return valid, masks
 
-
 def main():
     parser = argparse.ArgumentParser(description='Joint error calculation')
     parser.add_argument('--debug', '-d', action="store_true", help='activate debug mode')
     parser.add_argument('--inputdirs', '-i', required=True, nargs="+", help='input map directories')
     parser.add_argument('--inputfileregex', '-r', required=True, nargs="+", help='input map filename regex')
+    parser.add_argument('--logfile', '-l', type=str, help='optional: output log file')
     parser.add_argument('--names', '-n', required=True, nargs="+", help='names of the experiments')
     parser.add_argument('--output', '-o', required=True, default="results.xml", help='errors output file')
     parser.add_argument('--stop_after', '-s', default=-1, type=int, help='stop after n samples')
     parser.add_argument('--show_samples', action="store_true", help='show masked maps of the samples')
     args = parser.parse_args()
     
+    logger = logging.getLogger(LOGGER_NAME)
     if args.debug:
-        logging.basicConfig(level=logging.DEBUG)
+        level = logging.DEBUG
     else:
-        logging.basicConfig()
-    
+        level = logging.WARNING
+    logger.setLevel(level)
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setLevel(level)
+    logger.addHandler(stream_handler)
+
+    if args.logfile is not None:
+        file_handler = logging.FileHandler(args.logfile)
+        file_handler.setLevel(level)
+        logger.addHandler(file_handler)
+    logger.debug("test")
+
     if args.output[-4:].lower() != ".xml":
-        logging.error("Output file must be an xml file")
+        logger.error("Output file must be an xml file")
         exit(1)
 
     if os.path.exists(args.output):
-        logging.error(f"{args.output} alredy exists. Cannot continue... Please remove or rename this file first.")
+        logger.error(f"{args.output} alredy exists. Cannot continue... Please remove or rename this file first.")
         exit(1)
 
     num_sample_dirs = len(args.inputdirs)
     if num_sample_dirs != len(args.inputfileregex):
-        logging.error("The number of input directories and regex must be equal")
+        logger.error("The number of input directories and regex must be equal")
         exit(1)
     
     if num_sample_dirs != len(args.names):
-        logging.error("For each input directory there must be a descriptive experiment name")
+        logger.error("For each input directory there must be a descriptive experiment name")
         exit(1)
 
     num_samples = -1
@@ -90,10 +105,10 @@ def main():
             num_samples = len(cur_input_files)
 
         if len(cur_input_files) == 0:
-            logging.error(f"No input files found in directory {cur_input_dir} with pattern '{cur_input_regex}'")
+            logger.error(f"No input files found in directory {cur_input_dir} with pattern '{cur_input_regex}'")
             exit(1)
         if len(cur_input_files) != num_samples:
-            logging.error(f"Input directory {cur_input_dir} contains more samples than expected (expected: {num_samples}; found: {len(cur_input_files)})")
+            logger.error(f"Input directory {cur_input_dir} contains more samples than expected (expected: {num_samples}; found: {len(cur_input_files)})")
             exit(1)
 
         cur_input_file_ids = [get_sample_id(os.path.basename(path)) for path in cur_input_files]
@@ -103,9 +118,9 @@ def main():
             if sid not in samples:
                 samples[sid] = {}
             if cur_name in samples[sid]:
-                logging.error(f"found duplicate for {cur_name}:")
-                logging.error(f"{samples[sid][cur_name]}")
-                logging.error(f"{cur_input_file}")
+                logger.error(f"found duplicate for {cur_name}:")
+                logger.error(f"{samples[sid][cur_name]}")
+                logger.error(f"{cur_input_file}")
                 exit(1)
             samples[sid][cur_name] = cur_input_file
 
@@ -116,8 +131,8 @@ def main():
 
     if args.debug:
         debug_sample = sample_ids[0]
-        logging.debug(f"debug sample {debug_sample} tuple:")
-        logging.debug(samples[debug_sample])
+        logger.debug(f"debug sample {debug_sample} tuple:")
+        logger.debug(samples[debug_sample])
 
     mae_values = {name : 0.0 for name in args.names}
     rmse_values = {name : 0.0 for name in args.names}
@@ -136,9 +151,9 @@ def main():
             if height == -1:
                 height, width = cur_map.shape
             if cur_map.shape[0] != height:
-                logging.error("File {files_cur_sample[name]} expected to have a height of {height} not {cur_map.shape[0]}")
+                logger.error("File {files_cur_sample[name]} expected to have a height of {height} not {cur_map.shape[0]}")
             if cur_map.shape[1] != width:
-                logging.error("File {files_cur_sample[name]} expected to have a width of {width} not {cur_map.shape[1]}")
+                logger.error("File {files_cur_sample[name]} expected to have a width of {width} not {cur_map.shape[1]}")
             maps_cur_sample[name] = cur_map
         
         joint_valid_mask, masks = get_joint_valid_mask(maps_cur_sample)
@@ -180,8 +195,8 @@ def main():
 
         log_str_mae = log_str_mae[:-2]
         log_str_rmse = log_str_rmse[:-2]
-        logging.debug(log_str_mae)
-        logging.debug(log_str_rmse)
+        logger.debug(log_str_mae)
+        logger.debug(log_str_rmse)
 
     for name in args.names:
         mae_values[name] /= num_samples
@@ -203,14 +218,14 @@ def main():
         cur_rmse.attrib["src"] = name
         cur_rmse.text = str(rmse_values[name])
         
-    logging.info(f"Average MAE {name} {mae_values[name]}")
-    logging.info(f"Average RMSE {name} {rmse_values[name]}")
+    logger.info(f"Average MAE {name} {mae_values[name]}")
+    logger.info(f"Average RMSE {name} {rmse_values[name]}")
 
     pretty_xml_str = minidom.parseString(ET.tostring(results)).toprettyxml(indent = " " * 4)
     with open(args.output, "w") as xml_file:
         xml_file.write(pretty_xml_str)
 
-    logging.debug("Done")
+    logger.debug("Done")
 
 if __name__ == "__main__":
     main()
