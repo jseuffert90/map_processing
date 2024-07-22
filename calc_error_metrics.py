@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 
 from map_proc.image_helper import *
+from map_proc.numeric_helper import AtomicIntegerProc
 
 import argparse
 import glob
 import logging
+import multiprocessing
+from multiprocessing import Process, Array
 import os
 import re
 import sys
@@ -48,6 +51,78 @@ def get_joint_valid_mask(error_maps):
     assert valid is not None
     return valid, masks
 
+def run(samples, sample_ids, sample_id_counter, mae_values, rmse_values, args, proc_id, logger_lock):
+    logger = logging.getLogger(LOGGER_NAME)
+    with tqdm.tqdm(total=len(sample_ids), disable=(proc_id > 0)) as pbar:
+        sample_id_pos = sample_id_counter.getAndInc()
+        while sample_id_pos < len(sample_ids):
+            if args.stop_after > 0 and sample_id_pos >= args.stop_after:
+                break
+            sample_id = sample_ids[sample_id_pos]
+            files_cur_sample = samples[sample_id]
+            maps_cur_sample = {}
+            height, width = -1, -1
+
+            for name in files_cur_sample:
+                cur_map = read_data(files_cur_sample[name]).squeeze()
+                assert len(cur_map.shape) == 2
+                if height == -1:
+                    height, width = cur_map.shape
+                if cur_map.shape[0] != height:
+                    with logger_lock:
+                        logger.error("File {files_cur_sample[name]} expected to have a height of {height} not {cur_map.shape[0]}")
+                if cur_map.shape[1] != width:
+                    with logger_lock:
+                        logger.error("File {files_cur_sample[name]} expected to have a width of {width} not {cur_map.shape[1]}")
+                maps_cur_sample[name] = cur_map
+            
+            joint_valid_mask, masks = get_joint_valid_mask(maps_cur_sample)
+
+            if args.show_samples:
+                fig, axs = plt.subplots(2, num_sample_dirs)
+
+            log_str_mae = f"MAE {sample_id} "
+            log_str_rmse = f"RMSE {sample_id} "
+            for pos, name in enumerate(args.names):
+                error_map = maps_cur_sample[name]
+                cur_error_map_joint_valid = np.copy(error_map)
+                cur_error_map_joint_valid[np.bitwise_not(joint_valid_mask)] = float('nan')
+                
+                mae_v = np.mean(error_map[joint_valid_mask])
+                mae_values[pos] += mae_v
+                rmse_v = np.sqrt(np.mean(np.square(error_map[joint_valid_mask])))
+                rmse_values[pos] += rmse_v
+                
+                mae_own_mask = np.mean(error_map[masks[name]])
+
+                max_error_own_mask = np.max(error_map[masks[name]])
+                # print(f"{max_error_own_mask=}")
+                rmse_own_mask = np.sqrt(np.mean(np.square(error_map[masks[name]])))
+                
+                log_str_mae += f"{name} {mae_v:.05f}, "
+                log_str_rmse += f"{name} {rmse_v:.05f}, "
+                if args.show_samples:
+                    handle_own_mask = axs[0, pos].imshow(error_map)
+                    axs[0, pos].set_title(f'{name} - own mask')
+                    axs[0, pos].text(10, 60, f'MAE = {mae_own_mask:.05f}')
+                    axs[0, pos].text(10, 110, f'RMSE = {rmse_own_mask:.05f}')
+                    handle_joint_mask = axs[1, pos].imshow(cur_error_map_joint_valid)
+                    axs[1, pos].set_title(f'{name} - joint mask')
+                    axs[1, pos].text(10, 60, f'MAE = {mae_v:.05f}')
+                    axs[1, pos].text(10, 110, f'RMSE = {rmse_v:05f}')
+            if args.show_samples:
+                plt.show()
+
+            log_str_mae = log_str_mae[:-2]
+            log_str_rmse = log_str_rmse[:-2]
+            with logger_lock:
+                logger.debug(log_str_mae)
+                logger.debug(log_str_rmse)
+
+            pbar.n = min(len(sample_ids), sample_id_pos+1)
+            pbar.refresh()
+            sample_id_pos = sample_id_counter.getAndInc()
+
 def main():
     parser = argparse.ArgumentParser(description='Joint error calculation')
     parser.add_argument('--debug', '-d', action="store_true", help='activate debug mode')
@@ -55,6 +130,7 @@ def main():
     parser.add_argument('--inputfileregex', '-r', required=True, nargs="+", help='input map filename regex')
     parser.add_argument('--logfile', '-l', type=str, help='optional: output log file')
     parser.add_argument('--names', '-n', required=True, nargs="+", help='names of the experiments')
+    parser.add_argument('--num_procs', default=multiprocessing.cpu_count(), type=int, help="number of worker procs")
     parser.add_argument('--output', '-o', required=True, default="results.xml", help='errors output file')
     parser.add_argument('--stop_after', '-s', default=-1, type=int, help='stop after n samples')
     parser.add_argument('--show_samples', action="store_true", help='show masked maps of the samples')
@@ -134,73 +210,31 @@ def main():
         logger.debug(f"debug sample {debug_sample} tuple:")
         logger.debug(samples[debug_sample])
 
-    mae_values = {name : 0.0 for name in args.names}
-    rmse_values = {name : 0.0 for name in args.names}
-   
-    for sample_count, sample_id in enumerate(tqdm.tqdm(sample_ids)):
-        if args.stop_after > 0 and sample_count >= args.stop_after:
-            break
+    #mae_values = {name : Value0.0 for name in args.names}
+    #rmse_values = {name : 0.0 for name in args.names}
 
-        files_cur_sample = samples[sample_id]
-        maps_cur_sample = {}
-        height, width = -1, -1
+    mae_values = Array('d', len(args.names))
+    rmse_values = Array('d', len(args.names))
+ 
 
-        for name in files_cur_sample:
-            cur_map = read_data(files_cur_sample[name]).squeeze()
-            assert len(cur_map.shape) == 2
-            if height == -1:
-                height, width = cur_map.shape
-            if cur_map.shape[0] != height:
-                logger.error("File {files_cur_sample[name]} expected to have a height of {height} not {cur_map.shape[0]}")
-            if cur_map.shape[1] != width:
-                logger.error("File {files_cur_sample[name]} expected to have a width of {width} not {cur_map.shape[1]}")
-            maps_cur_sample[name] = cur_map
-        
-        joint_valid_mask, masks = get_joint_valid_mask(maps_cur_sample)
+    sample_id_counter = AtomicIntegerProc(0)
+    procs = []
+    logger_lock = multiprocessing.Lock()
 
-        if args.show_samples:
-            fig, axs = plt.subplots(2, num_sample_dirs)
+    if args.num_procs == 1:
+        run(samples, sample_ids, sample_id_counter, mae_values, rmse_values, args, 0, logger_lock)
+    else:
+        for proc_id in range(args.num_procs):
+            my_proc = Process(target=run, args=(samples, sample_ids, sample_id_counter, mae_values, rmse_values, args, proc_id, logger_lock))
+            procs.append(my_proc)
+            my_proc.start()
 
-        log_str_mae = f"MAE {sample_id} "
-        log_str_rmse = f"RMSE {sample_id} "
-        for pos, name in enumerate(args.names):
-            error_map = maps_cur_sample[name]
-            cur_error_map_joint_valid = np.copy(error_map)
-            cur_error_map_joint_valid[np.bitwise_not(joint_valid_mask)] = float('nan')
-            
-            mae_v = np.mean(error_map[joint_valid_mask])
-            mae_values[name] += mae_v
-            rmse_v = np.sqrt(np.mean(np.square(error_map[joint_valid_mask])))
-            rmse_values[name] += rmse_v
-            
-            mae_own_mask = np.mean(error_map[masks[name]])
+        for proc_id in range(args.num_procs):
+            procs[proc_id].join()
 
-            max_error_own_mask = np.max(error_map[masks[name]])
-            # print(f"{max_error_own_mask=}")
-            rmse_own_mask = np.sqrt(np.mean(np.square(error_map[masks[name]])))
-            
-            log_str_mae += f"{name} {mae_v:.05f}, "
-            log_str_rmse += f"{name} {rmse_v:.05f}, "
-            if args.show_samples:
-                handle_own_mask = axs[0, pos].imshow(error_map)
-                axs[0, pos].set_title(f'{name} - own mask')
-                axs[0, pos].text(10, 60, f'MAE = {mae_own_mask:.05f}')
-                axs[0, pos].text(10, 110, f'RMSE = {rmse_own_mask:.05f}')
-                handle_joint_mask = axs[1, pos].imshow(cur_error_map_joint_valid)
-                axs[1, pos].set_title(f'{name} - joint mask')
-                axs[1, pos].text(10, 60, f'MAE = {mae_v:.05f}')
-                axs[1, pos].text(10, 110, f'RMSE = {rmse_v:05f}')
-        if args.show_samples:
-            plt.show()
-
-        log_str_mae = log_str_mae[:-2]
-        log_str_rmse = log_str_rmse[:-2]
-        logger.debug(log_str_mae)
-        logger.debug(log_str_rmse)
-
-    for name in args.names:
-        mae_values[name] /= num_samples
-        rmse_values[name] /= num_samples
+    for pos in range(len(args.names)):
+        mae_values[pos] /= num_samples
+        rmse_values[pos] /= num_samples
 
     results = ET.Element('results')
     mae_elem = ET.SubElement(results, 'error_metric')
@@ -208,18 +242,17 @@ def main():
     rmse_elem = ET.SubElement(results, 'error_metric')
     rmse_elem.attrib['name'] = 'rmse'
     
-    for name in args.names:
+    for pos, name in enumerate(args.names):
         cur_mae = ET.SubElement(mae_elem, "error_value")
         cur_mae.attrib["src"] = name
-        cur_mae.text = str(mae_values[name])
+        cur_mae.text = str(mae_values[pos])
     
-    for name in args.names:
         cur_rmse = ET.SubElement(rmse_elem, "error_value")
         cur_rmse.attrib["src"] = name
-        cur_rmse.text = str(rmse_values[name])
+        cur_rmse.text = str(rmse_values[pos])
         
-    logger.info(f"Average MAE {name} {mae_values[name]}")
-    logger.info(f"Average RMSE {name} {rmse_values[name]}")
+        logger.info(f"Average MAE {name} {mae_values[pos]}")
+        logger.info(f"Average RMSE {name} {rmse_values[pos]}")
 
     pretty_xml_str = minidom.parseString(ET.tostring(results)).toprettyxml(indent = " " * 4)
     with open(args.output, "w") as xml_file:
