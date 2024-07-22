@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
+from map_proc.image_helper import *
+
 import argparse
 import glob
 import logging
 import os
 import re
-import tifffile
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
@@ -130,7 +131,7 @@ def main():
         height, width = -1, -1
 
         for name in files_cur_sample:
-            cur_map = tifffile.imread(files_cur_sample[name]).squeeze()
+            cur_map = read_data(files_cur_sample[name]).squeeze()
             assert len(cur_map.shape) == 2
             if height == -1:
                 height, width = cur_map.shape
