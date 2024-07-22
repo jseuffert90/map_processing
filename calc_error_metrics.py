@@ -89,9 +89,11 @@ def run(samples, sample_ids, sample_id_counter, mae_values, rmse_values, args, p
                 cur_error_map_joint_valid[np.bitwise_not(joint_valid_mask)] = float('nan')
                 
                 mae_v = np.mean(error_map[joint_valid_mask])
-                mae_values[pos] += mae_v
+                with mae_values.get_lock():
+                    mae_values[pos] += mae_v
                 rmse_v = np.sqrt(np.mean(np.square(error_map[joint_valid_mask])))
-                rmse_values[pos] += rmse_v
+                with rmse_values.get_lock():
+                    rmse_values[pos] += rmse_v
                 
                 mae_own_mask = np.mean(error_map[masks[name]])
 
