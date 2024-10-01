@@ -124,28 +124,26 @@ if __name__ == "__main__":
             n_rows = round(math.sqrt(num_images))
             n_cols = math.ceil(num_images / n_rows)
 
-    min_val = args.vmin
-    if min_val is None:
-        logger.debug(f"{images[0].shape=}")
-        min_val = np.min(images[0])
-        for i in range(1, len(images)):
-            min_val = min(np.min(images[i]), min_val)
+
     
     min_val = args.vmin
-    if min_val is None:
-        tmp = replace_invalid(images[0], sys.float_info.max)
-        min_val = np.min(tmp)
-        for i in range(1, len(images)):
-            tmp = replace_invalid(images[i], sys.float_info.max)
-            min_val = min(np.min(tmp), min_val)
-    
     max_val = args.vmax
+    v_start = min_val
+    v_stop = max_val
+
+    if min_val is None or max_val is None:
+        data_valid = []
+        for image in images:
+            data_valid += [image[(image == image) * (image > -np.inf) * (image < np.inf)]]
+        data_valid = np.concatenate(data_valid)
+
+    if min_val is None:
+        min_val = np.min(data_valid) 
+        v_start = np.quantile(data_valid, 0.05)
+    
     if max_val is None:
-        tmp = replace_invalid(images[0], sys.float_info.min)
-        max_val = np.max(tmp)
-        for i in range(1, len(images)):
-            tmp = replace_invalid(images[i], sys.float_info.min)
-            max_val = min(np.max(tmp), max_val)
+        max_val = np.max(data_valid)
+        v_stop = np.quantile(data_valid, 0.95)
 
     logger.debug(f"{min_val=}")
     logger.debug(f"{max_val=}")
@@ -170,7 +168,7 @@ if __name__ == "__main__":
     handles = []
     for i, axis in enumerate(axes_ravel):
         if i < num_images:
-            handle = axis.imshow(images[i], vmin=min_val, vmax=max_val, cmap=args.cmap)
+            handle = axis.imshow(images[i], vmin=v_start, vmax=v_stop, cmap=args.cmap)
             handles += [handle]
             if args.names is not None and len(args.names) > i:
                 t = args.names[i]
@@ -188,15 +186,12 @@ if __name__ == "__main__":
 
     if args.outfile is None:
         if args.vask:
-            v_start = min_val - 0.1 * (max_val - min_val)
-            v_stop = max_val + 0.1 * (max_val - min_val)
-            
             vmin_slider_ax =  fig.add_axes([0.3, 0.05, 0.4, 0.075])
-            vmin_slider = Slider(vmin_slider_ax, 'min. value', v_start, v_stop, valinit=min_val)
+            vmin_slider = Slider(vmin_slider_ax, 'min. value', min_val, max_val, valinit=v_start)
             vmin_slider.on_changed(update_vmin_vmax)
             
             vmax_slider_ax =  fig.add_axes([0.3, 0.0, 0.4, 0.075])
-            vmax_slider = Slider(vmax_slider_ax, 'max. value', v_start, v_stop, valinit=max_val)
+            vmax_slider = Slider(vmax_slider_ax, 'max. value', min_val, max_val, valinit=v_stop)
             vmax_slider.on_changed(update_vmin_vmax)
         plt.show()
     else:
