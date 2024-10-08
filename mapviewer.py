@@ -88,6 +88,13 @@ if __name__ == "__main__":
     images = []
     for f in args.file:
         image = read_data(f)
+        if image.dtype is np.dtype(bool):
+            image_tmp = np.zeros(image.shape, dtype=np.float32)
+            image_tmp[image] = 1.0
+            #image = image.astype(np.float32)
+            image = image_tmp
+        else:
+            print(f'{image.dtype=}')
 
         if args.abs:
             image = np.abs(image)
