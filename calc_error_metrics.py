@@ -78,6 +78,14 @@ def run(samples, sample_ids, sample_id_counter, mae_values, rmse_values, args, p
             
             joint_valid_mask, masks = get_joint_valid_mask(maps_cur_sample)
 
+            if args.expect_equal_valid_masks:
+                for name in masks:
+                    if not np.all(masks[name] == joint_valid_mask):
+                        with logger_lock:
+                            logger.error(f"The valid masks of {name} differs from the joint valid mask but equal valid masks are expected (--expect_equal_valid_masks provided)")
+                            logger.error(f"{files_cur_sample=}")
+                            exit(1)
+
             if args.show_samples:
                 fig, axs = plt.subplots(2, num_sample_dirs)
 
@@ -136,6 +144,7 @@ def main():
     parser.add_argument('--output', '-o', required=True, default="results.xml", help='errors output file')
     parser.add_argument('--stop_after', '-s', default=-1, type=int, help='stop after n samples')
     parser.add_argument('--show_samples', action="store_true", help='show masked maps of the samples')
+    parser.add_argument('--expect_equal_valid_masks', action="store_true", help='expect equal valid masks for each sample accross approaches')
     args = parser.parse_args()
     
     logger = logging.getLogger(LOGGER_NAME)
