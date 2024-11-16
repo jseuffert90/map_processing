@@ -7,14 +7,16 @@ import re
 from tqdm import tqdm
 
 def main():
-    parser = argparse.ArgumentParser('Mask maps')
+    parser = argparse.ArgumentParser('map_mask.py')
+    parser.add_argument('--derive_mask', '-d', action='store_true', help='treat mask files as maps and consider real values as positive mask values, +-inf or NaN as negative mask values')
     parser.add_argument('--maps', '-p', type=str, help='glob regex for maps to mask', required=True)
     parser.add_argument('--masks', '-s', type=str, help='glob regex for masks', required=True)
     parser.add_argument('--loglevel', '-l', \
             choices=['critical', 'error', 'warning', 'info', 'debug'], \
             default="warning", type=str, help="set the log level")
     parser.add_argument('--allow_diff_number_masks_maps', '-a', action='store_true', help="allow different numbers of masks and maps, mask and maps are matched by there ID")
-    parser.add_argument('--output_dir', '-o', type=str, help="output directory", required=True)
+    parser.add_argument('--output_dir', '-o', type=str, help="output directory")
+    parser.add_argument('--outfile', type=str, help="output file path (makes only sense for a single output, automatically generated otherwise)")
     parser.add_argument('--map_id_at_index', type=int, default=0, help="if -a: the id is the (x+1)th number in filename of map")
     parser.add_argument('--mask_id_at_index', type=int, default=0, help="if -a: the id is the (x+1)th number in filename of mask")
 
@@ -32,6 +34,12 @@ def main():
     
     mask_paths = glob.glob(args.masks)
     mask_paths = sorted(mask_paths)
+
+    if args.output_dir is None and args.outfile is None:
+        logger.error("Please provide either --output_dir, -o or --outfile.")
+        exit(1)
+    elif args.output_dir is not None and args.outfile is not None:
+        logger.warning("--output_dir is ignored in favor of --outfile")
 
     if len(map_paths) == 0:
         logger.error("No maps found")
@@ -66,9 +74,15 @@ def main():
         cur_mask = read_data(cur_mask_path)
 
         if cur_mask.dtype is not np.dtype(bool):
-            tmp = np.zeros_like(cur_mask, dtype=bool)
-            max_val = np.max(cur_mask)
-            tmp[cur_mask == max_val] = True
+            if args.derive_mask:
+                tmp = np.ones_like(cur_mask, dtype=bool)
+                tmp[cur_mask == torch.inf] = False
+                tmp[cur_mask == -torch.inf] = False
+                tmp[cur_mask != cur_mask] = False
+            else:
+                tmp = np.zeros_like(cur_mask, dtype=bool)
+                max_val = np.max(cur_mask)
+                tmp[cur_mask == max_val] = True
             cur_mask = tmp
 
         if cur_map.dtype is np.dtype(float) or cur_map.dtype is np.dtype('float32'):
@@ -79,8 +93,11 @@ def main():
         map_base, map_ext = os.path.splitext(os.path.basename(cur_map_path))
         mask_base, mask_ext = os.path.splitext(os.path.basename(cur_mask_path))
         out_fname = mask_base + map_ext
-        out_path = os.path.join(args.output_dir, out_fname)
-        write_data(out_path, cur_map)
+        if args.outfile is not None:
+            write_data(args.outfile, cur_map)
+        else:
+            out_path = os.path.join(args.output_dir, out_fname)
+            write_data(out_path, cur_map)
 
 
         
